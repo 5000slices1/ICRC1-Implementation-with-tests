@@ -93,7 +93,6 @@ else
 	@echo using PEM-file-directory: $(PEMDIR)	
 endif 
 
-
 install-check: update-variables	
 
 #on local computer only		
@@ -142,6 +141,13 @@ endif
 	
 ifeq (,$(wildcard $(HOME)/.rustup))  
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-endif	
+endif
+
+	mops update
+	dfx upgrade
+#	rustup update
+#	cd tests/Dfnity-ICRC1-Reference && rust update
+#	cd tests/Dfnity-ICRC1-Reference && cargo update
+
 endif
 

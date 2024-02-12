@@ -55,7 +55,9 @@ module {
         SB.add(metadata, ("icrc1:name", #Text(args.name)));
         SB.add(metadata, ("icrc1:symbol", #Text(args.symbol)));
         SB.add(metadata, ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))));        
-        SB.add(metadata, ("icrc1:minting_allowed", #Text(debug_show(args.minting_allowed))));   
+        SB.add(metadata, ("icrc1:minting_allowed", #Text(debug_show(args.minting_allowed)))); 
+        SB.add(metadata, ("icrc1:logo", #Text(args.logo))); 
+     
         metadata;
     };
 
