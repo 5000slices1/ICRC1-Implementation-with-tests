@@ -289,7 +289,8 @@ module {
             ("icrc1:name", #Text(token.name)),
             ("icrc1:symbol", #Text(token.symbol)),
             ("icrc1:decimals", #Nat(Nat8.toNat(token.decimals))),
-            ("icrc1:minting_allowed", #Text(debug_show(token.minting_allowed)))
+            ("icrc1:minting_allowed", #Text(debug_show(token.minting_allowed))),
+            ("icrc1:logo", #Text(token.logo)),
         ]
     };
 

@@ -435,6 +435,7 @@ actor class Ledger(init : { initial_mints : [{ account : { owner : Principal; su
       ("icrc1:symbol", #Text(init.token_symbol)),
       ("icrc1:decimals", #Nat(Nat8.toNat(init.decimals))),
       ("icrc1:fee", #Nat(init.transfer_fee)),
+       
     ];
   };
 

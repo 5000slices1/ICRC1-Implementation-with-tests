@@ -375,7 +375,8 @@ module {
                                 ("icrc1:name", #Text(args.name)),
                                 ("icrc1:symbol", #Text(args.symbol)),
                                 ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))),                                
-                                ("icrc1:minting_allowed", #Text(debug_show(args.minting_allowed)))
+                                ("icrc1:minting_allowed", #Text(debug_show(args.minting_allowed))),
+                                ("icrc1:logo", #Text(args.logo))
                             ],
                         );
                     },
