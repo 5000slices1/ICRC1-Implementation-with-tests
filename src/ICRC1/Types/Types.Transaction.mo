@@ -95,7 +95,7 @@ module {
         from : Account;
         to : Account;
         amount : Balance;
-        fee : ?Balance;
+        fee : Balance;
         memo : ?Blob;
         created_at_time : ?Nat64;
     };
@@ -106,7 +106,7 @@ module {
         from : Account;
         to : Account;
         amount : Balance;
-        fee : ?Balance;
+        fee : Balance;
         memo : ?Blob;
         created_at_time : ?Nat64;
         encoded : {

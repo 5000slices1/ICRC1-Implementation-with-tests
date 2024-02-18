@@ -20,7 +20,7 @@ module{
     };
 
     public type DatabaseAccount={
-        DbAccount:T.TokenTypes.Account;
+        DbAccount:T.AccountTypes.Account;
         DbBalance:T.CommonTypes.Balance;
     }
 
