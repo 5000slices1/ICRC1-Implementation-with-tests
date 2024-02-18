@@ -1,5 +1,5 @@
 [dependencies]
-base = "https://github.com/dfinity/motoko-base#moc-0.10.2@8028da2d691151a3202d7539b5828a7a381f40c6"
+base = "0.10.4"
 array = "https://github.com/aviate-labs/array.mo#v0.2.0@863a668bcbb3c3799a62c36b2cba2c32d1fcc433"
 StableTrieMap = "https://github.com/NatLabs/StableTrieMap#main@4781cb03efd34b124c22396c69710b374366c797"
 StableBuffer = "https://github.com/canscale/StableBuffer#v0.2.0@1af0e8814bac5ca7ed23a6c094204b46d9056c2e"
