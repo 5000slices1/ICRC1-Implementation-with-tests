@@ -23,6 +23,7 @@ import CommonTypes "../Types/Types.Common";
 import TokenTypes "../Types/Types.Token";
 import AccountTypes "../Types/Types.Account";
 import TransactionTypes "../Types/Types.Transaction";
+import List "mo:base/List";
 
 module {
 
@@ -47,6 +48,23 @@ module {
     private type Transaction = TransactionTypes.Transaction;
 
     
+
+    public func user_is_owner_or_admin(principal:Principal, token:TokenData):Bool{
+
+        if (principal == token.minting_account.owner){
+            return true;
+        };
+
+        if (List.size<Principal>(token.tokenAdmins) > 0 and 
+            List.some<Principal>(token.tokenAdmins, func(n) { n == principal })) {
+            return true;
+        };
+
+        return false;
+    };
+
+
+
 
     /// Creates a Stable Buffer with the default metadata and returns it.
     public func init_metadata(args : InitArgs) : StableBuffer.StableBuffer<MetaDatum> {
@@ -107,14 +125,58 @@ module {
         ]);
     };
 
+    // Return defaultFee or if principalfrom/principalTo is fee whitelisted then 0 is returned.
+    public func get_token_fee(principalFrom:Principal, principalTo:Principal,
+     token : TokenData):Nat{
+
+        let listSize:Nat = List.size<Principal>(token.feeWhitelistedPrincipals);
+        if (listSize ==0){
+            return token.defaultFee;
+        };
+
+        func listFindFunc(x : Principal) : Bool { x == principalFrom or x == principalTo };
+
+        let isWhitelisted:Bool = List.some<Principal>(
+                token.feeWhitelistedPrincipals,
+                listFindFunc,
+        );
+
+        if (isWhitelisted == true){
+            return 0;
+        };
+
+        return token.defaultFee;
+
+    };
+
+    public func get_real_token_fee(principalFrom:Principal, principalTo:Principal,
+    token : TokenData, feeSpecified:?Nat):Nat{
+
+        var result:Nat = get_token_fee(principalFrom, principalTo, token);
+        switch(feeSpecified){
+            case (?feeValue){
+                if (result > 0){
+                    result:= Nat.max(feeValue, result);                 
+                };
+                return result;
+                
+            };
+            case (_){return token.defaultFee};
+        }
+
+    };
+
     /// Formats the different operation arguments into
     /// a `TransactionRequest`, an internal type to access fields easier.
     public func create_transfer_req(
         args : TransferArgs,
         owner : Principal,
         tx_kind: TxKind,
+        token : TokenData
     ) : TransactionRequest {
         
+        var transferFee = get_real_token_fee(owner, args.to.owner, token, args.fee);
+
         let from = {
             owner;
             subaccount = args.from_subaccount;
@@ -129,7 +191,7 @@ module {
             case (#mint) {
                 {
                     args with kind = #mint;
-                    fee = null;
+                    fee = 0;
                     from;
                     encoded;
                 };
@@ -137,17 +199,25 @@ module {
             case (#burn) {
                 {
                     args with kind = #burn;
-                    fee = null;
+                    fee = 0;
                     from;
                     encoded;
                 };
             };
             case (#transfer) {
+                let result:TransactionRequest =
                 {
-                    args with kind = #transfer;
-                    from;
-                    encoded;
+                    from_subaccount = args.from_subaccount;
+                    to = args.to;
+                    amount = args.amount;
+                    fee = transferFee;
+                    memo = args.memo;
+                    from = from;
+                    encoded = encoded;
+                    created_at_time = args.created_at_time;
+                    kind = #transfer;
                 };
+                return result;
             };
         };
     };

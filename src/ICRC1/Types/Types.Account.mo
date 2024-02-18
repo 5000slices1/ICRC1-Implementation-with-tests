@@ -1,4 +1,6 @@
 import STMap "mo:StableTrieMap";
+import Principal "mo:base/Principal";
+import List "mo:base/List";
 import CommonTypes "Types.Common"
 
 module{
@@ -13,6 +15,10 @@ module{
     ///This type is included in the token-data type itself.    
     public type AccountBalances = STMap.StableTrieMap<EncodedAccount, CommonTypes.Balance>;
 
+    public type PrincipalsWhiteListedFees = List.List<Principal>;
+
+    public type AdminPrincipals = List.List<Principal>;
+    
     ///For Response
     public type ParseError = {
         #malformed : Text;

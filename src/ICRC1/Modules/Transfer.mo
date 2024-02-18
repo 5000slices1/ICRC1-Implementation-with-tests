@@ -139,20 +139,21 @@ module {
         token : TokenData,
         opt_fee : ?Balance,
     ) : Bool {
+
         switch (opt_fee) {
             case (?tx_fee) {
-                if (tx_fee < token.fee) { 
+                if (tx_fee < token.defaultFee) { 
                     return false;
                 };
 
                 //make sure that not enormous fee is used by bad actor
-                if (tx_fee > (token.fee * 10)) { 
+                if (tx_fee > (token.defaultFee * 10)) { 
                     return false;
                 };
 
             };
             case (null) {
-                //null is ok, becasue for real transaction the fee-value will be taken from 'token.fee', and not from 'tx_fee'
+                //null is ok, because for real transaction the fee will not be taken from 'tx_fee'
                 return true;
             };
         };
@@ -165,6 +166,7 @@ module {
     public func validate_request(
         token : TokenData,
         tx_req : TransactionRequest,
+        originalfeeFromRequest:?Nat
     ) : Result.Result<(), TransferError> {
 
         if (tx_req.from == tx_req.to) {
@@ -213,7 +215,7 @@ module {
         };
 
         if (tx_req.kind == #transfer or tx_req.kind ==#mint){
-            if (tx_req.amount <= token.fee) {                
+            if (tx_req.amount <= tx_req.fee) {                
                 return #err(
                     #GenericError({
                         error_code = 0;
@@ -225,10 +227,10 @@ module {
 
         switch (tx_req.kind) {
             case (#transfer) {
-                if (not validate_fee(token, tx_req.fee)) {
+                if (not validate_fee(token,originalfeeFromRequest)) {
                     return #err(
                         #BadFee {
-                            expected_fee = token.fee;
+                            expected_fee = token.defaultFee;
                         },
                     );
                 };
@@ -238,7 +240,7 @@ module {
                     tx_req.encoded.from,
                 );
                                                 
-                if (tx_req.amount + token.fee > balance) {                     
+                if (tx_req.amount + tx_req.fee > balance) {                     
                     return #err(#InsufficientFunds { balance  });
                     
                 };

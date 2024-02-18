@@ -16,7 +16,7 @@ import Bool "mo:base/Bool";
 import Account "Account";
 import Trie "mo:base/Trie";
 import List "mo:base/List";
-
+import Result "mo:base/Result";
 import Utils "Utils";
 import Transfer "Transfer";
 import Archive "../Canisters/Archive";
@@ -115,19 +115,22 @@ module {
             _minted_tokens += balance;
         };
 
+        let result:T.TokenTypes.TokenData = 
         {
             var name = name;
             var symbol = symbol;
             var decimals = decimals;
-            var fee = fee;
+            var defaultFee = fee;
             var logo = logo;
-            max_supply;
+            var max_supply = max_supply;
             var minted_tokens = _minted_tokens;
             var burned_tokens = _burned_tokens;
             var min_burn_amount = min_burn_amount;
             var minting_account = minting_account;
-            minting_allowed;
+            var minting_allowed = minting_allowed;
             accounts;
+            var feeWhitelistedPrincipals = List.nil<Principal>();
+            var tokenAdmins = List.nil<Principal>();
             metadata = Utils.init_metadata(args);
             supported_standards = Utils.init_standards();
             transactions = SB.initPresized(ConstantTypes.MAX_TRANSACTIONS_IN_LEDGER);
@@ -138,6 +141,8 @@ module {
                 var stored_txs = 0;
             };
         };
+
+        return result;
     };
 
     /// Retrieve the name of the token
@@ -156,9 +161,14 @@ module {
     };
 
     /// Retrieve the fee for each transfer
-    public func fee(token : TokenData) : Balance {
-        token.fee;
+    public func defaultFee(token : TokenData) : Balance {
+        token.defaultFee;
     };
+
+    public func fee(principalFrom:Principal, principalTo:Principal, token : TokenData) : Balance {
+        token.defaultFee;
+    };
+
 
     /// Retrieve the minimum burn amount for the token
     public func min_burn_amount(token : TokenData) : Balance {
@@ -214,7 +224,7 @@ module {
     public func set_fee(token : TokenData, fee : Nat, caller : Principal) : async* SetBalanceParameterResult {
         if (caller == token.minting_account.owner) {
             if (fee >= 10_000 and fee <= 1_000_000_000) {
-                token.fee := fee;
+                token.defaultFee := fee;
             } else {
                 return #Err(
                     #GenericError {
@@ -231,7 +241,7 @@ module {
                 },
             );
         };
-        #Ok(token.fee);
+        #Ok(token.defaultFee);
     };
 
     /// Set the number of decimals specified for the token
@@ -285,7 +295,7 @@ module {
     /// Retrieve all the metadata of the token
     public func metadata(token : TokenData) : [MetaDatum] {
         [
-            ("icrc1:fee", #Nat(token.fee)),
+            ("icrc1:fee", #Nat(token.defaultFee)),
             ("icrc1:name", #Text(token.name)),
             ("icrc1:symbol", #Text(token.symbol)),
             ("icrc1:decimals", #Nat(Nat8.toNat(token.decimals))),
@@ -376,6 +386,8 @@ module {
             owner = caller;
             subaccount = args.from_subaccount;
         };
+
+        
         
         let tx_kind:T.TransactionTypes.TxKind = if (from == token.minting_account) {
            
@@ -398,10 +410,11 @@ module {
         } else {                              
             #transfer
         };
+ 
+        let feeFromRequest = args.fee;
+        let tx_req = Utils.create_transfer_req(args, caller, tx_kind, token);
 
-        let tx_req = Utils.create_transfer_req(args, caller, tx_kind);
-
-        switch (Transfer.validate_request(token, tx_req)) {
+        switch (Transfer.validate_request(token, tx_req, feeFromRequest)) {
             case (#err(errorType)) {                
                 return #Err(errorType);
             };
@@ -423,7 +436,7 @@ module {
                 Utils.transfer_balance(token, tx_req);
 
                 // burn fee
-                Utils.burn_balance(token, encoded.from, token.fee);
+                Utils.burn_balance(token, encoded.from, tx_req.fee);
             };
         };
         
@@ -764,5 +777,73 @@ module {
         };
 
         return List.some<Principal>(archive_canisterIds.canisterIds, listFindFunc);
+    };
+
+
+        public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin:Principal, token : TokenData) :  Result.Result<Text, Text> {
+
+        if (caller != token.minting_account.owner) {
+            return #err("Only owner can add admin user");
+        };
+
+        let userIsAlreadyAdminOrOwner = Utils.user_is_owner_or_admin(principalToAddAsAdmin, token);
+        if (userIsAlreadyAdminOrOwner == false) {
+            token.tokenAdmins:= List.push<Principal>(principalToAddAsAdmin, token.tokenAdmins);
+            return #ok("Principal was added as admin user.");
+        };
+
+        return #ok("Is already admin user or owner.");
+    };
+
+    public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin:Principal, token:TokenData) : Result.Result<Text, Text> {
+
+        if (caller != token.minting_account.owner) {
+            return #err("Only owner can remove admin user");
+        };
+       
+        let userIsAlreadyAdminOrOwner = Utils.user_is_owner_or_admin(principalToRemoveAsAdmin, token);
+        if (userIsAlreadyAdminOrOwner == true) {
+            token.tokenAdmins:= List.filter<Principal>(token.tokenAdmins, func n { n != principalToRemoveAsAdmin });       
+            return #ok("Principal was added as admin user.");
+        };
+
+        return #ok("Principal was not in the admin list.");
+    };
+
+    public func list_admin_users(token: TokenData) : [Principal] {
+        return List.toArray<Principal>(token.tokenAdmins);
+    };
+
+    public func feewhitelisting_add_principal(caller:Principal, principal : Principal, token:TokenData): Result.Result<Text, Text> {
+        let userIsAdminOrOwner = Utils.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == false) {       
+            return #err("Only owner or admin users can exexcute this function.");
+        };
+
+         if (List.size<Principal>(token.feeWhitelistedPrincipals) > 0 and 
+            List.some<Principal>(token.feeWhitelistedPrincipals, func(n) { n == principal })) {
+            return #err("This principal is already fee white listed.");
+        };
+        token.feeWhitelistedPrincipals:= List.push<Principal>(principal, token.feeWhitelistedPrincipals);   
+        return #ok("The principal was added in the fee white list.");
+    };
+
+    public func feewhitelisting_remove_principal(caller:Principal, principal : Principal, token:TokenData): Result.Result<Text, Text> {
+        let userIsAdminOrOwner = Utils.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == false) {       
+            return #err("Only owner or admin users can exexcute this function.");
+        };
+
+         if (List.size<Principal>(token.feeWhitelistedPrincipals) > 0 and 
+            List.some<Principal>(token.feeWhitelistedPrincipals, func(n) { n == principal })) {
+            token.feeWhitelistedPrincipals:= List.filter<Principal>(token.feeWhitelistedPrincipals, func n { n != principal });     
+            return #ok("Ok. The principal was removed from the fee white list.");
+        };
+        token.feeWhitelistedPrincipals:= List.push<Principal>(principal, token.feeWhitelistedPrincipals);   
+        return #ok("The principal is not fee white listed. Nothing to remove.");
+    };
+
+    public func feewhitelisting_get_list(token:TokenData): [Principal] {
+        return List.toArray<Principal>(token.feeWhitelistedPrincipals);
     };
 };

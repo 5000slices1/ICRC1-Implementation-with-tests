@@ -28,7 +28,7 @@ module{
     
     ///This information is used by the token
     public type MetaData = [MetaDatum];
-        
+     
     /// Initial arguments for the setting up the icrc1 token canister
     public type InitArgs = {
         name : Text;
@@ -75,19 +75,24 @@ module{
         var decimals : Nat8;
 
         /// The fee charged for each transaction
-        var fee : Balance;
+        var defaultFee : Balance;
 
         /// The logo for the token
         var logo : Text;
 
         /// The maximum supply of the token
-        max_supply : Balance;
+        /// This is set as variable, so that token-amount scaling can be done.
+        /// For example initial token-supply-amount is set to 5000
+        /// Then later we multiply (as example) the supply with factor 100, so that 500000 supply is now used.
+        /// And also all the token-holder balances will be multiplied by that same factor 100.
+        /// Therefore the max_supply must be set as variable.
+        var max_supply : Balance;
 
         /// The total amount of minted tokens
         var minted_tokens : Balance;
 
         // Only if this is set to true then minting is allowed for this token
-        minting_allowed:Bool;
+        var minting_allowed:Bool;
 
         /// The total amount of burned tokens
         var burned_tokens : Balance;
@@ -99,8 +104,9 @@ module{
         /// The balances of all accounts
         accounts : AccountBalances;
 
-        /// The metadata for the token
-        metadata : StableBuffer<MetaDatum>;
+        var feeWhitelistedPrincipals: AccountTypes.PrincipalsWhiteListedFees;
+
+        var tokenAdmins: AccountTypes.AdminPrincipals;
 
         /// The standards supported by this token's implementation
         supported_standards : StableBuffer<SupportedStandard>;
