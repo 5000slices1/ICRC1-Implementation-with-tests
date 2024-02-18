@@ -264,7 +264,7 @@ module {
                             token.max_supply == args.max_supply,
 
                             token.minting_account == args.minting_account,
-                            SB.toArray(token.supported_standards) == [U.icrc1_standard],
+                            SB.toArray(token.supported_standards) == [U.icrc1_standard, U.icrc2_standard],
                             SB.size(token.transactions) == 0,
                         ]);
                     },
@@ -398,7 +398,12 @@ module {
                             ICRC1.supported_standards(token) == [{
                                 name = "ICRC-1";
                                 url = "https://github.com/dfinity/ICRC-1";
-                            }],
+                            },
+                            {
+                               name = "ICRC-2";
+                               url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
+                            }
+                            ],
                         );
                     },
                 ),
