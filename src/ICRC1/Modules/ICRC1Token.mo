@@ -53,13 +53,13 @@ module {
     private type TokenInitArgs = T.TokenTypes.TokenInitArgs;
     private type TokenData = T.TokenTypes.TokenData;
     private type MetaDatum = T.TokenTypes.MetaDatum;
-    private type TokenInterface = T.TokenTypes.TokenInterface;
-    private type RosettaInterface = T.TokenTypes.RosettaInterface;        
+    //private type TokenInterface = T.TokenTypes.TokenInterface;
+    //private type RosettaInterface = T.TokenTypes.RosettaInterface;        
     private type FullInterface = T.TokenTypes.FullInterface;
     private type SetTextParameterResult = T.TokenTypes.SetTextParameterResult;
     private type SetBalanceParameterResult = T.TokenTypes.SetBalanceParameterResult;
     private type SetNat8ParameterResult = T.TokenTypes.SetNat8ParameterResult;
-    private type SetAccountParameterResult = T.TokenTypes.SetAccountParameterResult;
+    //private type SetAccountParameterResult = T.TokenTypes.SetAccountParameterResult;
     
     private type ArchiveInterface = T.ArchiveTypes.ArchiveInterface;
         

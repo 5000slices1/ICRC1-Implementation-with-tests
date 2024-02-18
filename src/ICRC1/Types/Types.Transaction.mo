@@ -15,17 +15,16 @@ module {
     private type TxLog = StableBuffer.StableBuffer<Transaction>;
     private type Subaccount = AccountTypes.Subaccount;
     private type Account = AccountTypes.Account;
-    private type EncodedAccount = AccountTypes.EncodedAccount;    
+    private type EncodedAccount = AccountTypes.EncodedAccount;
     private type StableBuffer<T> = StableBuffer.StableBuffer<T>;
     private type StableTrieMap<K, V> = STMap.StableTrieMap<K, V>;
-    
-    public type BlockIndex = Nat;    
+
+    public type BlockIndex = Nat;
     public type Memo = Blob;
     public type Timestamp = Nat64;
     public type Duration = Nat64;
-    public type TxIndex = Nat;    
+    public type TxIndex = Nat;
     public type TxCandidBlob = Blob;
-
 
     public type TimeError = {
         #TooOld;
@@ -37,7 +36,6 @@ module {
         #burn;
         #transfer;
     };
-
 
     public type TransferResult = {
         #Ok : TxIndex;
@@ -60,7 +58,7 @@ module {
         memo : ?Blob;
         created_at_time : ?Nat64;
     };
-    
+
     ///Burn arguments type
     public type BurnArgs = {
         from_subaccount : ?Subaccount;
@@ -125,7 +123,6 @@ module {
         timestamp : Timestamp;
     };
 
-
     // Rosetta API
     /// The type to request a range of transactions from the ledger canister
     public type GetTransactionsRequest = {
@@ -135,12 +132,11 @@ module {
 
     ///If multiple transactions are requested
     public type TransactionRange = {
-        transactions: [Transaction];
+        transactions : [Transaction];
     };
 
     ///callback function
-    public type QueryArchiveFn = shared query (GetTransactionsRequest) 
-    -> async TransactionRange;
+    public type QueryArchiveFn = shared query (GetTransactionsRequest) -> async TransactionRange;
 
     ///This is included in the response type 'GetTransactionsResponse'
     public type ArchivedTransaction = {
@@ -150,7 +146,7 @@ module {
         length : Nat;
 
         /// The callback function to query the archive canister
-        callback: QueryArchiveFn;
+        callback : QueryArchiveFn;
     };
 
     ///The actual response-type for getting multiple transactions
@@ -167,4 +163,77 @@ module {
         /// Pagination request for archived transactions in the given range
         archived_transactions : [ArchivedTransaction];
     };
+
+    //Icrc2 types:
+
+    public type Allowance = { allowance : Nat; expires_at : ?Nat64 };
+    public type AllowanceArgs = { account : Account; spender : Account };
+
+    public type Approve = {
+        fee : ?Nat;
+        from : Account;
+        memo : ?[Nat8];
+        created_at_time : ?Nat64;
+        amount : Nat;
+        expected_allowance : ?Nat;
+        expires_at : ?Nat64;
+        spender : Account;
+    };
+
+    public type ApproveArgs = {
+        fee : ?Nat;
+        memo : ?[Nat8];
+        from_subaccount : ?[Nat8];
+        created_at_time : ?Nat64;
+        amount : Nat;
+        expected_allowance : ?Nat;
+        expires_at : ?Nat64;
+        spender : Account;
+    };
+
+    public type ApproveError = {
+        #GenericError : { message : Text; error_code : Nat };
+        #TemporarilyUnavailable;
+        #Duplicate : { duplicate_of : Nat };
+        #BadFee : { expected_fee : Nat };
+        #AllowanceChanged : { current_allowance : Nat };
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #TooOld;
+        #Expired : { ledger_time : Nat64 };
+        #InsufficientFunds : { balance : Nat };
+    };
+
+    public type TransferFromArgs = {
+        to : Account;
+        fee : ?Nat;
+        spender_subaccount : ?[Nat8];
+        from : Account;
+        memo : ?[Nat8];
+        created_at_time : ?Nat64;
+        amount : Nat;
+    };
+
+    public type TransferFromError = {
+        #GenericError : { message : Text; error_code : Nat };
+        #TemporarilyUnavailable;
+        #InsufficientAllowance : { allowance : Nat };
+        #BadBurn : { min_burn_amount : Nat };
+        #Duplicate : { duplicate_of : Nat };
+        #BadFee : { expected_fee : Nat };
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #TooOld;
+        #InsufficientFunds : { balance : Nat };
+    };
+
+
+    public type ApproveResponse = {
+        #Ok : Nat;
+        #Err : ApproveError;
+    };
+
+     public type TransferFromResponse = {
+        #Ok : Nat;
+        #Err : TransferFromError;
+    };
+
 };

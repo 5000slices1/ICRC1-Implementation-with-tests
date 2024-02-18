@@ -264,7 +264,7 @@ module {
                             token.max_supply == args.max_supply,
 
                             token.minting_account == args.minting_account,
-                            SB.toArray(token.supported_standards) == [U.default_standard],
+                            SB.toArray(token.supported_standards) == [U.icrc1_standard],
                             SB.size(token.transactions) == 0,
                         ]);
                     },
