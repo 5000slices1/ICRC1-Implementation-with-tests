@@ -288,11 +288,21 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         return ICRC1.feewhitelisting_get_list(token);
     };
 
-
-
     //ICRC2 implementation
-    public shared ({caller}) func icrc2_approve():async Bool{
-        return true;
+    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResponse {
+        return #Ok(0);
+    };
+
+    public shared query ({ caller }) func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {
+        let dummyResult : T.TransactionTypes.Allowance = {
+            allowance = 0;
+            expires_at = null;
+        };
+        return dummyResult;
+    };
+
+    public shared ({ caller }) func icrc2_transfer_from(transferFromArgs : T.TransactionTypes.TransferFromArgs) : async T.TransactionTypes.TransferFromResponse {
+        return #Ok(0);
     };
 
     // Deposit cycles into this canister.

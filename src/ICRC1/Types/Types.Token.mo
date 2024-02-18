@@ -113,7 +113,7 @@ module {
         /// The balances of all accounts
         accounts : AccountBalances;
 
-        var feeWhitelistedPrincipals : AccountTypes.PrincipalsWhiteListedFees;
+        var feeWhitelistedPrincipals : AccountTypes.PrincipalsWhitelistedFees;
 
         var tokenAdmins : AccountTypes.AdminPrincipals;
 
@@ -215,6 +215,6 @@ module {
     };
 
     /// Interface of the ICRC token and Rosetta canister
-    public type FullInterface = Icrc1Interface and RosettaInterface;
+    public type FullInterface = Icrc1Interface and Icrc2Interface and RosettaInterface;
 
 };
