@@ -38,6 +38,10 @@ module {
         #transfer;
     };
 
+    public type OperationKind = {
+        #approve;
+    };
+
     public type TransferResult = {
         #Ok : TxIndex;
         #Err : TransferError;
@@ -168,7 +172,7 @@ module {
     //Icrc2 types:
 
     // (0) 
-    //     Description (for thw related icrc2_allowance method):
+    //     Description (for the related icrc2_allowance method):
     //     Returns the token allowance that the spender account can transfer from the specified account, 
     //     and the expiration time for that allowance, if any. If there is no active approval, 
     //     the ledger MUST return { allowance = 0; expires_at = null }.

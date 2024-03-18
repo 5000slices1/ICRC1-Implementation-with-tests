@@ -32,7 +32,15 @@ module {
         token : TokenData,
     ) : async T.TransactionTypes.ApproveResponse {
 
-        
+        let from = {
+            owner = caller;
+            subaccount = args.from_subaccount;
+        };
+
+        let tx_kind = #approve;
+
+        let tx_req = Utils.create_approve_req(args, caller, tx_kind);
+
         return #Ok(0);
     };
 
@@ -55,5 +63,43 @@ module {
 
         return #Ok(0);
     };
+
+
+    private func create_approve_req(
+        args : T.TransactionTypes.ApproveArgs,
+        owner : Principal,
+        tx_kind : T.TransactionTypes.OperationKind,
+    ) : T.ApproveTxRequest {
+
+        let from = {
+            owner;
+            subaccount = args.from_subaccount;
+        };
+
+        let to = {
+            owner = args.spender;
+            subaccount = null;
+        };
+
+        let encoded = {
+            from = Account.encode(from);
+            to = Account.encode(to);
+        };
+
+        {
+            kind = tx_kind;
+            from = from;
+            spender = to;
+            amount = args.amount;
+            expires_at = args.expires_at;
+            fee = args.fee;
+            memo = args.memo;
+            created_at_time = args.created_at_time;
+            expected_allowance = args.expected_allowance;
+            // args with kind = #approve;
+            encoded;
+        };
+    };
+
 
 };

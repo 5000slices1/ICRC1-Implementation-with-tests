@@ -143,8 +143,8 @@ ifeq (,$(wildcard $(HOME)/.rustup))
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 endif
 
-	mops update
-	dfx upgrade
+#	mops update
+#	dfx upgrade
 #	rustup update
 #	cd tests/Dfnity-ICRC1-Reference && rust update
 #	cd tests/Dfnity-ICRC1-Reference && cargo update

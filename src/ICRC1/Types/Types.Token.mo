@@ -3,6 +3,7 @@ import AccountTypes "Types.Account";
 import TransactionTypes "Types.Transaction";
 import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
+import Trie "mo:base/Trie";
 import ArchiveTypes "Types.Archive";
 
 module {
@@ -23,12 +24,14 @@ module {
     private type TransferResult = TransactionTypes.TransferResult;
     private type TransferArgs = TransactionTypes.TransferArgs;
     private type Transaction = TransactionTypes.Transaction;
+    private type ApprovalItem = TransactionTypes.ApprovalItem;
 
     private type ArchiveData = ArchiveTypes.ArchiveData;
     private type Value = CommonTypes.Value;
     private type Balance = CommonTypes.Balance;
 
     private type Account = AccountTypes.Account;
+    private type EncodedAccount = AccountTypes.EncodedAccount;
     private type AccountBalances = AccountTypes.AccountBalances;
     private type StableBuffer<T> = StableBuffer.StableBuffer<T>;
 
@@ -112,6 +115,8 @@ module {
 
         /// The balances of all accounts
         accounts : AccountBalances;
+
+        //allowances: Trie.Trie2D<EncodedAccount, EncodedAccount, ApprovalItem>;
 
         var feeWhitelistedPrincipals : AccountTypes.PrincipalsWhitelistedFees;
 

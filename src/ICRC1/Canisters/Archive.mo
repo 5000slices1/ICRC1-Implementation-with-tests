@@ -52,7 +52,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     stable let MEMORY_PER_PAGE : Nat64 = Nat64.fromNat(64 * KiB);
     stable let MIN_PAGES : Nat64 = 32; // 2MiB == 32 * 64KiB
     stable let PAGES_TO_GROW : Nat64 = 2048; // 64MiB
-    stable let MAX_MEMORY = 32 * GiB;
+    stable let MAX_MEMORY = 26 * GiB;
     stable let BUCKET_SIZE = 1000;
 
     public shared ({ caller }) func init() : async Principal {

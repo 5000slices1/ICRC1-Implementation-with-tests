@@ -290,6 +290,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     //ICRC2 implementation
     public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResponse {
+        
         return #Ok(0);
     };
 
@@ -322,13 +323,17 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     /// Retrieve information for the main token and all dynamically added archive canisters:
     /// - The balance for each canister is shown
-    /// - The canister-id for each canister is shown when this function is called by the minting-owner
+    /// - The canister-id for each canister is shown when this function is called by the minting-owner or admin
     public shared ({ caller }) func all_canister_stats() : async [T.CanisterTypes.CanisterStatsResponse] {
         if (tokenCanisterId == Principal.fromText("aaaaa-aa")) {
             tokenCanisterId := Principal.fromActor(this);
         };
         let balance = Cycles.balance();
-        let hidePrincipals : Bool = caller != token.minting_account.owner;
+        var hidePrincipals : Bool = true;
+        if (Utils.user_is_owner_or_admin(caller, token) == true){
+            hidePrincipals:=false;
+        };
+
         await* ICRC1.all_canister_stats(hidePrincipals, tokenCanisterId, balance, archive_canisterIds);
     };
 
@@ -347,9 +352,10 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     ///This function enables the timer to auto fill the dynamically created archive canisters
     public shared ({ caller }) func auto_topup_cycles_enable(minutes : ?Nat) : async Result.Result<Text, Text> {
 
-        if (caller != token.minting_account.owner) {
-            return #err("Unauthorized: Only minting account can call this function..");
+        if (Utils.user_is_owner_or_admin(caller, token) == false){
+            return #err("Unauthorized: Only minting account or admin can call this function..");
         };
+       
 
         let minutesToUse : Nat = switch (minutes) {
             case (?minutes) minutes;
@@ -373,8 +379,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     /// This functions disables the auto fill up timer
     public shared ({ caller }) func auto_topup_cycles_disable() : async Result.Result<Text, Text> {
 
-        if (caller != token.minting_account.owner) {
-            return #err("Unauthorized: Only minting account can call this function..");
+        if (Utils.user_is_owner_or_admin(caller, token) == false){
+            return #err("Unauthorized: Only minting account or admin can call this function..");
         };
 
         cancelTimer(autoTopupData.autoCyclesTopUpTimerId);
