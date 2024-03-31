@@ -20,10 +20,8 @@ jobs:
 #      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
           
       - name: install mops
-        run: |
-            npm --yes -g i ic-mops
-            mops i
-
+        uses: ZenVoich/setup-mops@v1
+        
 #      - name: Detect warnings
 #        run: make no-warn
 
@@ -56,9 +54,7 @@ jobs:
           override: true
 
       - name: install mops
-        run: |
-            npm --yes -g i ic-mops
-            mops i
+        uses: ZenVoich/setup-mops@v1
 
       - name: Run reference tests
         run: |                                        
