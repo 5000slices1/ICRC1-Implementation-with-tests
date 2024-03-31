@@ -16,11 +16,13 @@ jobs:
       - uses: aviate-labs/setup-dfx@v0.3.0
         with:
           dfx-version: 0.18.0
+          vessel-version: 0.7.0
+      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
           
-      - name: install mops
-        run: |
-            npm --yes -g i ic-mops
-            mops i
+#      - name: install mops
+#        run: |
+#            npm --yes -g i ic-mops
+#            mops i
 
 #      - name: Detect warnings
 #        run: make no-warn
@@ -43,6 +45,8 @@ jobs:
       - uses: aviate-labs/setup-dfx@v0.3.0
         with:
           dfx-version: 0.18.0
+          vessel-version: 0.7.0
+      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -51,10 +55,10 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: install mops
-        run: |
-            npm --yes -g i ic-mops
-            mops i
+#      - name: install mops
+#        run: |
+#            npm --yes -g i ic-mops
+#            mops i
 
       - name: Run reference tests
         run: |                                        
