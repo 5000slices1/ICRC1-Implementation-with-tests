@@ -19,10 +19,10 @@ jobs:
 #          vessel-version: 0.7.0
 #      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
           
-#      - name: install mops
-#        run: |
-#            npm --yes -g i ic-mops
-#            mops i
+      - name: install mops
+        run: |
+            npm --yes -g i ic-mops
+            mops i
 
 #      - name: Detect warnings
 #        run: make no-warn
@@ -55,10 +55,10 @@ jobs:
           toolchain: stable
           override: true
 
-#      - name: install mops
-#        run: |
-#            npm --yes -g i ic-mops
-#            mops i
+      - name: install mops
+        run: |
+            npm --yes -g i ic-mops
+            mops i
 
       - name: Run reference tests
         run: |                                        
