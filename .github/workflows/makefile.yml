@@ -9,13 +9,13 @@ jobs:
 
     name: Build and internal tests
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: aviate-labs/setup-dfx@v0.2.3
+      - uses: aviate-labs/setup-dfx@v0.3.0
         with:
-          dfx-version: 0.15.2
+          dfx-version: 0.18.0
           
       - name: install mops
         run: |
@@ -34,15 +34,15 @@ jobs:
 
     name: ICRC-1 reference test
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: aviate-labs/setup-dfx@v0.2.3
+      - uses: aviate-labs/setup-dfx@v0.3.0
         with:
-          dfx-version: 0.15.2
+          dfx-version: 0.18.0
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
