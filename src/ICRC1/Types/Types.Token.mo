@@ -1,10 +1,12 @@
 import CommonTypes "Types.Common";
 import AccountTypes "Types.Account";
 import TransactionTypes "Types.Transaction";
-import STMap "mo:StableTrieMap";
+//import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
-import Trie "mo:base/Trie";
+//import Trie "mo:base/Trie";
 import ArchiveTypes "Types.Archive";
+import HashList "mo:memory-hashlist";
+import HashTable "mo:memory-hashtable";
 
 module {
 
@@ -133,6 +135,10 @@ module {
 
         /// The allowed difference between the ledger time and the time of the device the transaction was created on
         permitted_drift : Nat;
+
+        memoryDatabaseForHashList:HashList.MemoryStorage;
+
+        memoryDatabaseForHashTable:HashTable.MemoryStorage;
 
         /// The recent transactions that have been processed by the ledger.
         /// Only the last 2000 transactions are stored before being archived.

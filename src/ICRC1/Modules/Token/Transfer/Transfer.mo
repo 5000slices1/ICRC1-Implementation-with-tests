@@ -15,12 +15,13 @@ import Itertools "mo:itertools/Iter";
 import StableBuffer "mo:StableBuffer/StableBuffer";
 import STMap "mo:StableTrieMap";
 
-import Account "Account";
-import TransactionTypes = "../Types/Types.Transaction";
-import TokenTypes "../Types/Types.Token";
-import CommonTypes "../Types/Types.Common" ;
-import Utils "Utils";
+import Account "../Account/Account";
+import TransactionTypes = "../../../Types/Types.Transaction";
+import TokenTypes "../../../Types/Types.Token";
+import CommonTypes "../../../Types/Types.Common" ;
+import Utils "../Utils/Utils";
 
+/// Token transfer related functions are defined here
 module {
     let { SB } = Utils;
     

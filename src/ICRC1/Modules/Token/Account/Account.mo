@@ -13,23 +13,28 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
+import List "mo:base/List";
 
 import ArrayModule "mo:array/Array";
 import Itertools "mo:itertools/Iter";
 import StableBuffer "mo:StableBuffer/StableBuffer";
 import STMap "mo:StableTrieMap";
-import T "../Types/Types.All";
+import T "../../../Types/Types.All";
+import TokenTypes "../../../Types/Types.Token";
 
+
+/// Token- or user account related functions are defined here
 module {
 
     private type Account = T.AccountTypes.Account;
     private type EncodedAccount = T.AccountTypes.EncodedAccount;
     private type Subaccount = T.AccountTypes.Subaccount;
     private type ParseError = T.AccountTypes.ParseError;
-    
+    private type TokenData = TokenTypes.TokenData;
+
     private type Iter<A> = Iter.Iter<A>;
     let crc32Seed : Nat32 = 0xffffffff;
-    
+
     // prettier-ignore
     let hexDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
 
@@ -80,10 +85,65 @@ module {
     , 0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
     ];
 
-
     // prettier-ignore
     private let base32Alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "2", "3", "4", "5", "6", "7"];
 
+    public func user_is_owner_or_admin(principal:Principal, token:TokenData):Bool{
+
+        if (principal == token.minting_account.owner){
+            return true;
+        };
+
+        if (List.size<Principal>(token.tokenAdmins) > 0 and 
+            List.some<Principal>(token.tokenAdmins, func(n) { n == principal })) {
+            return true;
+        };
+
+        return false;
+    };
+
+    public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin:Principal, token : TokenData) :  Result.Result<Text, Text> {
+
+        if (caller != token.minting_account.owner) {
+            return #err("Only owner can add admin user");
+        };
+
+        let userIsAlreadyAdminOrOwner = user_is_owner_or_admin(principalToAddAsAdmin, token);
+        if (userIsAlreadyAdminOrOwner == false) {
+            token.tokenAdmins:= List.push<Principal>(principalToAddAsAdmin, token.tokenAdmins);
+            return #ok("Principal was added as admin user.");
+        };
+
+        return #ok("Is already admin user or owner.");
+    };
+
+    public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin:Principal, token:TokenData) : Result.Result<Text, Text> {
+
+        if (caller != token.minting_account.owner) {
+            return #err("Only owner can remove admin user");
+        };
+       
+        let userIsAlreadyAdminOrOwner = user_is_owner_or_admin(principalToRemoveAsAdmin, token);
+        if (userIsAlreadyAdminOrOwner == true) {
+            token.tokenAdmins:= List.filter<Principal>(token.tokenAdmins, func n { n != principalToRemoveAsAdmin });       
+            return #ok("Principal was added as admin user.");
+        };
+
+        return #ok("Principal was not in the admin list.");
+    };
+
+    public func list_admin_users(token: TokenData) : [Principal] {
+        return List.toArray<Principal>(token.tokenAdmins);
+    };
+
+
+    /// Returns the default subaccount for cases where a user does
+    /// not specify it.
+    public func default_subaccount() : Subaccount {
+        Blob.fromArray(
+            Array.tabulate(32, func(_ : Nat) : Nat8 { 0 }),
+        );
+    };
 
     /// Implementation of ICRC1's Textual representation of accounts [Encoding Standard](https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-1#encoding)
     public func encode({ owner; subaccount } : Account) : EncodedAccount {
@@ -96,8 +156,8 @@ module {
                         Itertools.chain(
                             owner_blob.vals(),
                             encode_subaccount(subaccount),
-                        ),
-                    ),
+                        )
+                    )
                 );
             };
             case (_) {
@@ -129,8 +189,8 @@ module {
 
             let principal = Principal.fromBlob(
                 Blob.fromArray(
-                    ArrayModule.slice(bytes, 0, split_index),
-                ),
+                    ArrayModule.slice(bytes, 0, split_index)
+                )
             );
 
             let prefix_zeroes = Itertools.take(
@@ -142,8 +202,8 @@ module {
 
             let subaccount = Blob.fromArray(
                 Iter.toArray(
-                    Itertools.chain(prefix_zeroes, encoded_subaccount),
-                ),
+                    Itertools.chain(prefix_zeroes, encoded_subaccount)
+                )
             );
 
             ?{ owner = principal; subaccount = ?subaccount };
@@ -177,40 +237,6 @@ module {
         };
     };
 
-    func shrink_subaccount(sub : Blob) : (Iter.Iter<Nat8>, Nat8) {
-        let bytes = Blob.toArray(sub);
-        var size = Nat8.fromNat(bytes.size());
-
-        let iter = Itertools.skipWhile(
-            bytes.vals(),
-            func(byte : Nat8) : Bool {
-                if (byte == 0x00) {
-                    size -= 1;
-                    return true;
-                };
-
-                false;
-            },
-        );
-
-        (iter, size);
-    };
-
-    func encode_subaccount(sub : Blob) : Iter.Iter<Nat8> {
-
-        let (sub_iter, size) = shrink_subaccount(sub);
-        if (size == 0) {
-            return Itertools.empty();
-        };
-
-        let suffix : [Nat8] = [size, 0x7f];
-
-        Itertools.chain<Nat8>(
-            sub_iter,
-            suffix.vals(),
-        );
-    };
-    
     /// Converts an ICRC-1 Account from its Textual representation to the `Account` type
     /// Parses account from its textual representation.
     public func fromText(text : Text) : Result.Result<Account, ParseError> {
@@ -271,8 +297,8 @@ module {
         var subaccountMut = Array.init<Nat8>(32, 0);
 
         let subaccountDigits = iterChain(
-        iterReplicate('0', 64 - numSubaccountDigits : Nat),
-        iterSlice(chars, dot + 1, n - 1 : Nat),
+            iterReplicate('0', 64 - numSubaccountDigits : Nat),
+            iterSlice(chars, dot + 1, n - 1 : Nat),
         );
 
         // Decode hex backwards into the subaccount array.
@@ -298,46 +324,59 @@ module {
         };
 
         #ok({ owner = owner; subaccount = ?subaccount });
-  };
-      
+    };
+
     /// Converts an ICRC-1 `Account` to its Textual representation
     public func toText(account : Account) : Text {
-        let ownerText:Text = Principal.toText(account.owner);
+        let ownerText : Text = Principal.toText(account.owner);
 
         switch (account.subaccount) {
-            case (null) { ownerText; };
+            case (null) { ownerText };
             case (?subaccount) {
                 assert (subaccount.size() == 32);
                 if (iterAll(subaccount.vals(), func(b : Nat8) : Bool { b == 0 })) {
                     ownerText;
-                    } else {
-                ownerText # "-" # checkSum(account.owner, subaccount) # "." # displaySubaccount(subaccount);
+                } else {
+                    ownerText # "-" # checkSum(account.owner, subaccount) # "." # displaySubaccount(subaccount);
                 };
             };
-        };       
+        };
     };
 
+    //Helper functions:
 
-    //Helper functions:     
-    func from_hex(char : Char) : Nat8 {
-        let charCode = Char.toNat32(char);
+    func shrink_subaccount(sub : Blob) : (Iter.Iter<Nat8>, Nat8) {
+        let bytes = Blob.toArray(sub);
+        var size = Nat8.fromNat(bytes.size());
 
-        if (Char.isDigit(char)) {
-            let digit = charCode - Char.toNat32('0');
+        let iter = Itertools.skipWhile(
+            bytes.vals(),
+            func(byte : Nat8) : Bool {
+                if (byte == 0x00) {
+                    size -= 1;
+                    return true;
+                };
 
-            return Nat8.fromNat(Nat32.toNat(digit));
+                false;
+            },
+        );
+
+        (iter, size);
+    };
+
+    func encode_subaccount(sub : Blob) : Iter.Iter<Nat8> {
+
+        let (sub_iter, size) = shrink_subaccount(sub);
+        if (size == 0) {
+            return Itertools.empty();
         };
 
-        if (Char.isUppercase(char)) {
-            let digit = charCode - Char.toNat32('A') + 10;
+        let suffix : [Nat8] = [size, 0x7f];
 
-            return Nat8.fromNat(Nat32.toNat(digit));
-        };
-
-        // lowercase
-        let digit = charCode - Char.toNat32('a') + 10;
-
-        return Nat8.fromNat(Nat32.toNat(digit));
+        Itertools.chain<Nat8>(
+            sub_iter,
+            suffix.vals(),
+        );
     };
 
     func iterAll<T>(xs : Iter.Iter<T>, predicate : (T) -> Bool) : Bool {
@@ -349,7 +388,7 @@ module {
         };
     };
 
-    public func checkSum(owner : Principal, subaccount : Blob) : Text {
+    func checkSum(owner : Principal, subaccount : Blob) : Text {
         let crc = crc32Seed ^ iterFold(iterChain(Principal.toBlob(owner).vals(), subaccount.vals()), updateCrc, crc32Seed);
 
         let d = func(shift : Nat) : Text {
@@ -385,13 +424,13 @@ module {
         };
 
         Text.fromIter(
-          Iter.map(
-            iterSkipWhile(
-              iterFlatMap(subaccount.vals(), nibbles),
-              func(b : Nat8) : Bool { b == 0 },
-            ),
-            hexDigit,
-          )
+            Iter.map(
+                iterSkipWhile(
+                    iterFlatMap(subaccount.vals(), nibbles),
+                    func(b : Nat8) : Bool { b == 0 },
+                ),
+                hexDigit,
+            )
         );
     };
 
@@ -452,7 +491,7 @@ module {
         var left = times;
 
         public func next() : ?T {
-        if (left == 0) { null } else { left -= 1; ?x };
+            if (left == 0) { null } else { left -= 1; ?x };
         };
     };
 

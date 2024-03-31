@@ -18,11 +18,11 @@ import Itertools "mo:itertools/Iter";
 import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
 
-import Account "Account";
-import CommonTypes "../Types/Types.Common";
-import TokenTypes "../Types/Types.Token";
-import AccountTypes "../Types/Types.Account";
-import TransactionTypes "../Types/Types.Transaction";
+import Account "../Account/Account";
+import CommonTypes "../../../Types/Types.Common";
+import TokenTypes "../../../Types/Types.Token";
+import AccountTypes "../../../Types/Types.Account";
+import TransactionTypes "../../../Types/Types.Transaction";
 import List "mo:base/List";
 
 module {
@@ -49,62 +49,7 @@ module {
 
     
 
-    public func user_is_owner_or_admin(principal:Principal, token:TokenData):Bool{
 
-        if (principal == token.minting_account.owner){
-            return true;
-        };
-
-        if (List.size<Principal>(token.tokenAdmins) > 0 and 
-            List.some<Principal>(token.tokenAdmins, func(n) { n == principal })) {
-            return true;
-        };
-
-        return false;
-    };
-
-
-
-
-    /// Creates a Stable Buffer with the default metadata and returns it.
-    public func init_metadata(args : InitArgs) : StableBuffer.StableBuffer<MetaDatum> {
-        let metadata = SB.initPresized<MetaDatum>(5);
-        SB.add(metadata, ("icrc1:fee", #Nat(args.fee)));
-        SB.add(metadata, ("icrc1:name", #Text(args.name)));
-        SB.add(metadata, ("icrc1:symbol", #Text(args.symbol)));
-        SB.add(metadata, ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))));        
-        SB.add(metadata, ("icrc1:minting_allowed", #Text(debug_show(args.minting_allowed)))); 
-        SB.add(metadata, ("icrc1:logo", #Text(args.logo))); 
-     
-        metadata;
-    };
-
-    public let icrc1_standard : SupportedStandard = {
-        name = "ICRC-1";
-        url = "https://github.com/dfinity/ICRC-1";
-    };
-
-    public let icrc2_standard:SupportedStandard = {
-        name = "ICRC-2";
-        url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
-    };
-
-    /// Creates a Stable Buffer with the default supported standards and returns it.
-    public func init_standards() : StableBuffer.StableBuffer<SupportedStandard> {
-        let standards = SB.initPresized<SupportedStandard>(4);
-        SB.add(standards, icrc1_standard);
-        SB.add(standards, icrc2_standard);
-
-        standards;
-    };
-
-    /// Returns the default subaccount for cases where a user does
-    /// not specify it.
-    public func default_subaccount() : Subaccount {
-        Blob.fromArray(
-            Array.tabulate(32, func(_ : Nat) : Nat8 { 0 }),
-        );
-    };
 
     /// this is a local copy of deprecated Hash.hashNat8 (redefined to suppress the warning)
     func hashNat8(key : [Nat32]) : Hash.Hash {

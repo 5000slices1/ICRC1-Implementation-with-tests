@@ -5,6 +5,7 @@ import ICRC1 "ICRC1/ICRC1.ActorTest";
 import AccountTest "ICRC1/Account.Test";
 import Text "mo:base/Text";
 import ActorSpec "./utils/ActorSpec";
+import ExtendedTokenActorTest "ICRC1/ExtendedToken.ActorTest";
 
 actor {
     let { run } = ActorSpec;
@@ -12,6 +13,7 @@ actor {
     let test_modules = [
         
         {function = ICRC1.test; description="ICRC1.test":Text},
+        {function = ExtendedTokenActorTest.test; description="ExtendedTokenActorTest.test":Text},
         {function = Archive.test; description="Archive.test":Text},      
         {function = AccountTest.test; description="Account.test":Text}
         

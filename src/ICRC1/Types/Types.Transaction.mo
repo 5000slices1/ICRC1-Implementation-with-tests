@@ -26,6 +26,8 @@ module {
     public type Duration = Nat64;
     public type TxIndex = Nat;
     public type TxCandidBlob = Blob;
+    public type Tokens = Nat;
+
 
     public type TimeError = {
         #TooOld;
@@ -36,10 +38,6 @@ module {
         #mint;
         #burn;
         #transfer;
-    };
-
-    public type OperationKind = {
-        #approve;
     };
 
     public type TransferResult = {
@@ -171,83 +169,22 @@ module {
 
     //Icrc2 types:
 
-    // (0) 
-    //     Description (for the related icrc2_allowance method):
+
+
+
+    // --------------------------------------------------------------------
+    /// ICRC2 allowance
+        
     //     Returns the token allowance that the spender account can transfer from the specified account, 
     //     and the expiration time for that allowance, if any. If there is no active approval, 
     //     the ledger MUST return { allowance = 0; expires_at = null }.
     public type Allowance = { allowance : Nat; expires_at : ?Nat64 };
     public type AllowanceArgs = { account : Account; spender : Account };
 
-   //Specification source: https://github.com/chichangb/ICRC-1/blob/main/standards/ICRC-2/README.md
-   //
-   //(1)
-   //    The number of transfers the spender can initiate from the caller's account 
-   //    is unlimited as long as the total amounts and fees of these 
-   //    transfers do not exceed the allowance. 
-   //    -> This is the default behaviour from the ICRC2 specifiction. But in this implementation
-   //       we can overrule this by the type 'UserApprovalSettings', to allow transfer_from only one time if wanted.
-   //
-   //(2) 
-   //    The call resets the allowance and the expiration date for the spender account to the given values.
-   //
-   //(3) 
-   //    Preconditions:
-   //    - The caller has enough fees on the { owner = caller; subaccount = from_subaccount } account to pay the approval fee.
-   //    - If the expires_at field is set, it's greater than the current ledger time.
-   //    - If the expected_allowance field is set, it's equal to the current allowance for the spender.
-   //(4)
-   //    Postconditions:
-   //    - The spender's allowance for the { owner = caller; subaccount = from_subaccount } is equal to the given amount.
-   //
-    public type Approve = {
-        fee : ?Nat;
-        from : Account;
-        memo : ?[Nat8];
-        created_at_time : ?Nat64;
+    // --------------------------------------------------------------------
 
-        //(1)
-        //    The caller does not need to have the full token amount on the specified account 
-        //    for the approval to succeed, just enough tokens to pay the approval fee
-        //(2)
-        //    The ledger MAY cap the allowance if it is too large (for example, larger than the total token supply). 
-        //    For example, if there are only 100 tokens, and the ledger receives an approval for 120 tokens, 
-        //    the ledger may cap the allowance to 100.
-        amount : Nat;
-
-        //If the expected_allowance field is set, the ledger MUST ensure that the current allowance 
-        //for the spender from the caller's account is equal to the given value and return 
-        //the AllowanceChanged error otherwise.
-        expected_allowance : ?Nat;
-
-        expires_at : ?Nat64;
-
-        //The ledger SHOULD reject the call if the spender account owner is equal to the source account owner.
-        spender : Account;
-    };
-
-    public type ApproveArgs = {
-        fee : ?Nat;
-        memo : ?[Nat8];
-        from_subaccount : ?[Nat8];
-        created_at_time : ?Nat64;
-        amount : Nat;
-        expected_allowance : ?Nat;
-        expires_at : ?Nat64;
-        spender : Account;
-    };
-
-    public type ApproveError = {
-        #GenericError : { message : Text; error_code : Nat };
-        #TemporarilyUnavailable;
-        #Duplicate : { duplicate_of : Nat };
-        #BadFee : { expected_fee : Nat };
-        #AllowanceChanged : { current_allowance : Nat };
-        #CreatedInFuture : { ledger_time : Nat64 };
-        #TooOld;
-        #Expired : { ledger_time : Nat64 };
-        #InsufficientFunds : { balance : Nat };
-    };
+    // --------------------------------------------------------------------
+    /// ICRC2 transfer-from
 
     // (0)  
     //      Description:
@@ -298,16 +235,132 @@ module {
     };
 
 
-    public type ApproveResponse = {
-        #Ok : Nat;
-        #Err : ApproveError;
-    };
-
     public type TransferFromResponse = {
         #Ok : Nat;
         #Err : TransferFromError;
     };
 
+    // --------------------------------------------------------------------
+
+    //  -------------------------------------------------------------------
+    /// ICRC2 Approval 
+    
+    public type OperationKind = {
+        #approve;
+    };
+
+
+    public type ApproveTxRequest = {
+        kind : OperationKind;
+        from : Account;
+        spender : Account;
+        amount : Balance;
+        expires_at : ?Nat64;
+        fee : ?Balance;
+        memo : ?Blob;
+        created_at_time : ?Nat64;
+        encoded : {
+            from : EncodedAccount;
+            to : EncodedAccount;
+        };
+        expected_allowance : ?Nat;
+    };
+
+        // Specification source: https://github.com/chichangb/ICRC-1/blob/main/standards/ICRC-2/README.md
+        //
+        // (1)
+        //    The number of transfers the spender can initiate from the caller's account 
+        //    is unlimited as long as the total amounts and fees of these 
+        //    transfers do not exceed the allowance. 
+        //    -> This is the default behaviour from the ICRC2 specifiction. But in this implementation
+        //       we can overrule this by the type 'UserApprovalSettings', to allow transfer_from only one time if wanted.
+        //
+        // (2) 
+        //    The call resets the allowance and the expiration date for the spender account to the given values.
+        //
+        // (3) 
+        //    Preconditions:
+        //    - The caller has enough fees on the { owner = caller; subaccount = from_subaccount } account to pay the approval fee.
+        //    - If the expires_at field is set, it's greater than the current ledger time.
+        //    - If the expected_allowance field is set, it's equal to the current allowance for the spender.
+        // (4)
+        //    Postconditions:
+        //    - The spender's allowance for the { owner = caller; subaccount = from_subaccount } is equal to the given amount.
+        //
+        public type Approve = {
+        fee : ?Nat;
+        from : Account;
+        memo : ?[Nat8];
+        created_at_time : ?Nat64;
+
+        // (1)
+        //    The caller does not need to have the full token amount on the specified account 
+        //    for the approval to succeed, just enough tokens to pay the approval fee
+        // (2)
+        //    The ledger MAY cap the allowance if it is too large (for example, larger than the total token supply). 
+        //    For example, if there are only 100 tokens, and the ledger receives an approval for 120 tokens, 
+        //    the ledger may cap the allowance to 100.
+        amount : Nat;
+
+        //If the expected_allowance field is set, the ledger MUST ensure that the current allowance 
+        //for the spender from the caller's account is equal to the given value and return 
+        //the AllowanceChanged error otherwise.
+        expected_allowance : ?Nat;
+
+        expires_at : ?Nat64;
+
+        //The ledger SHOULD reject the call if the spender account owner is equal to the source account owner.
+        spender : Account;
+    };
+
+    public type ApproveArgs = {
+        from_subaccount : ?Subaccount;
+        spender : Account;
+        amount : Nat;
+        expected_allowance : ?Nat;
+        expires_at : ?Nat64;
+        fee : ?Nat;
+        memo : ?Blob;
+        created_at_time : ?Nat64;
+    };
+
+
+   
+
+
+    public type ApproveError = {
+        #BadFee : { expected_fee : Nat };
+
+        // The caller does not have enough funds to pay the approval fee.
+        #InsufficientFunds : { balance : Nat };
+
+        // The caller specified the [expected_allowance] field, and the current
+        // allowance did not match the given value.
+        #AllowanceChanged : { current_allowance : Nat };
+
+        // The approval request expired before the ledger had a chance to apply it.
+        #Expired : { ledger_time : Nat64 };
+        
+        #TooOld;        
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #Duplicate : { duplicate_of : Nat };
+        #TemporarilyUnavailable;
+        #GenericError : { message : Text; error_code : Nat };
+        
+        
+        
+        
+        
+        
+        
+        
+    };
+
+    public type ApproveResponse = {
+        #Ok : Nat;
+        #Err : ApproveError;
+    };
+    
     public type ApprovalItem = {
         from: ?Account;
         spender:?Account;
@@ -340,5 +393,7 @@ module {
         //-> For security reasons (memory issue) this list can only contain max 100 items
         global_expiration_time_disabled:List.List<Principal>;
     };
+
+    //  -------------------------------------------------------------------
 
 };

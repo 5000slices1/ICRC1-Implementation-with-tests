@@ -103,7 +103,7 @@ ifeq (, $(shell which curl))
 	@sudo apt-get install curl -y
 endif
 
-ifeq (,$(shell which $(HOME)/bin/dfx))	
+ifeq (,$(shell which dfxvm))	
 	@echo No dfx is installed, dfx will be installed now....
 	curl -fsSL https://internetcomputer.org/install.sh -o install_dfx.sh
 	chmod +x install_dfx.sh
