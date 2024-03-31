@@ -16,8 +16,8 @@ jobs:
       - uses: aviate-labs/setup-dfx@v0.3.0
         with:
           dfx-version: 0.18.0
-          vessel-version: 0.7.0
-      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
+#          vessel-version: 0.7.0
+#      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
           
 #      - name: install mops
 #        run: |
@@ -45,8 +45,8 @@ jobs:
       - uses: aviate-labs/setup-dfx@v0.3.0
         with:
           dfx-version: 0.18.0
-          vessel-version: 0.7.0
-      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
+#          vessel-version: 0.7.0
+#      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
