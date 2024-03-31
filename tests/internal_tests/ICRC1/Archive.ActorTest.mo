@@ -1,15 +1,12 @@
 import Debug "mo:base/Debug";
 import Array "mo:base/Array";
-import Iter "mo:base/Iter";
 import Option "mo:base/Option";
 import Nat "mo:base/Nat";
 import Int "mo:base/Int";
 import Float "mo:base/Float";
 import Nat64 "mo:base/Nat64";
-import Principal "mo:base/Principal";
 import EC "mo:base/ExperimentalCycles";
 import Text "mo:base/Text";
-import Bool "mo:base/Bool";
 
 import Archive "../../../src/ICRC1/Canisters/Archive";
 import T "../../../src/ICRC1/Types/Types.All";
@@ -21,15 +18,10 @@ module {
     private type Transaction = T.TransactionTypes.Transaction;
 
     let {                    
-        assertAllEqualWithDescription;
-        assertTrue;
-        assertFalse;
+        assertAllEqualWithDescription;        
         assertAllTrue;
         describe;
-        it;
-        skip;
-        pending;
-        run;
+        it;      
     } = ActorSpec;
 
     func new_tx(i : Nat) : Transaction {
@@ -57,15 +49,11 @@ module {
         txs_range(0, length);
     };
 
-    func new_txs_range(from:Nat, length : Nat) : [Transaction] {
-        txs_range(from, length);
-    };
-
-    let TC = 1_000_000_000_000;
+        
     let CREATE_CANISTER = 100_000_000_000;
 
-    func create_canister_and_add_cycles(n : Float) {
-        EC.add(
+    func create_canister_and_add_cycles<system>(n : Float) {
+        EC.add<system>(
             CREATE_CANISTER + Int.abs(Float.toInt(n * 1_000_000_000_000)),
         );
     };
@@ -113,7 +101,7 @@ module {
                 it(
                     "append_transactions()",
                     do {
-                        create_canister_and_add_cycles(0.1);
+                        create_canister_and_add_cycles<system>(0.1);
                         let archive = await Archive.Archive();
 
                         let txs = new_txs(500);
@@ -129,7 +117,7 @@ module {
                     "get_transaction() - with 3555 transactions",
                     do {
                         Debug.print("Started 'get_transaction() - with 3555 transactions'");
-                        create_canister_and_add_cycles(0.1);
+                        create_canister_and_add_cycles<system>(0.1);
                         let archive = await Archive.Archive();
                         let txs = new_txs(3555);
                         ignore await archive.append_transactions(txs);
@@ -170,7 +158,7 @@ module {
                     do {
                         Debug.print("Startedclear
                          'get_transaction() - with 55000 transactions'");
-                        create_canister_and_add_cycles(0.1);
+                        create_canister_and_add_cycles<system>(0.1);
                         let archive = await Archive.Archive();                        
                         let txs = new_txs(55000);
                         ignore await archive.append_transactions(txs);
@@ -216,7 +204,7 @@ module {
                     "get_transactions()",
                     do {
 
-                        create_canister_and_add_cycles(0.1);
+                        create_canister_and_add_cycles<system>(0.1);
                         let archive = await Archive.Archive();
 
                         let txs = new_txs(9000);

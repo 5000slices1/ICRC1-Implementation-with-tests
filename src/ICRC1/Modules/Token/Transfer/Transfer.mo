@@ -15,12 +15,13 @@ import Itertools "mo:itertools/Iter";
 import StableBuffer "mo:StableBuffer/StableBuffer";
 import STMap "mo:StableTrieMap";
 
-import Account "Account";
-import TransactionTypes = "../Types/Types.Transaction";
-import TokenTypes "../Types/Types.Token";
-import CommonTypes "../Types/Types.Common" ;
-import Utils "Utils";
+import Account "../Account/Account";
+import TransactionTypes = "../../../Types/Types.Transaction";
+import TokenTypes "../../../Types/Types.Token";
+import CommonTypes "../../../Types/Types.Common" ;
+import Utils "../Utils/Utils";
 
+/// Token transfer related functions are defined here
 module {
     let { SB } = Utils;
     
@@ -142,12 +143,11 @@ module {
 
         switch (opt_fee) {
             case (?tx_fee) {
-                if (tx_fee < token.defaultFee) { 
-                    return false;
-                };
 
-                //make sure that not enormous fee is used by bad actor
-                if (tx_fee > (token.defaultFee * 10)) { 
+                //changed becasue on https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md
+                //it says there:  If the fee argument does not agree with the ledger fee, 
+                //                the ledger MUST return variant { BadFee = record { expected_fee = ... } } error.
+                if (tx_fee != token.defaultFee) { 
                     return false;
                 };
 

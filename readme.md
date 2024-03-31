@@ -2,7 +2,14 @@
 
 [![Makefile CI](https://github.com/fGhost713/ICRC1-Implementation-with-tests/actions/workflows/makefile.yml/badge.svg?branch=main)](https://github.com/fGhost713/ICRC1-Implementation-with-tests/actions/workflows/makefile.yml)
 
+
+# Important notice 
+
+This token is not ready yet, for usage. (work in progress...)
+
+
 # ICRC-1 Implementation details 
+- <b>This repo is work in progress. Should not be used in production at the moment....</b>
 - This repo contains the implementation of the [ICRC-1](https://github.com/dfinity/ICRC-1) token standard. 
 - Code of the [SNEED ICRC token](https://github.com/icsneed/sneed) was merged into this repository.  
 - Two executable test packages are included. Internal tests and a copy of [Dfinity reference tests](https://github.com/dfinity/ICRC-1/tree/main/test).

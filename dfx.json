@@ -15,7 +15,8 @@
         "build": {
           "_args_comment": "--max-stable-pages=524288 -> 32 GB  [524288 = 32 GB / 64Kb(each page size) ] -> (524288 * 65536) = 34359738368 bytes = 33554432 kb = 32768 MB = 32 GB",
           "args": "--max-stable-pages=524288", 
-          "packtool": "mops sources"
+          "packtool": "mops sources",
+          "dfx": "0.18.0"
         }
       }
     

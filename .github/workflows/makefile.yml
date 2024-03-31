@@ -9,19 +9,19 @@ jobs:
 
     name: Build and internal tests
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: aviate-labs/setup-dfx@v0.2.3
+      - uses: aviate-labs/setup-dfx@v0.3.0
         with:
-          dfx-version: 0.15.2
+          dfx-version: 0.18.0
+#          vessel-version: 0.7.0
+#      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
           
       - name: install mops
-        run: |
-            npm --yes -g i ic-mops
-            mops i
-
+        uses: ZenVoich/setup-mops@v1
+        
 #      - name: Detect warnings
 #        run: make no-warn
 
@@ -34,15 +34,17 @@ jobs:
 
     name: ICRC-1 reference test
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: aviate-labs/setup-dfx@v0.2.3
+      - uses: aviate-labs/setup-dfx@v0.3.0
         with:
-          dfx-version: 0.15.2
+          dfx-version: 0.18.0
+#          vessel-version: 0.7.0
+#      - run: for i in src/*.mo ; do $(vessel bin)/moc $(vessel sources) --check $i ; done
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -52,9 +54,7 @@ jobs:
           override: true
 
       - name: install mops
-        run: |
-            npm --yes -g i ic-mops
-            mops i
+        uses: ZenVoich/setup-mops@v1
 
       - name: Run reference tests
         run: |                                        

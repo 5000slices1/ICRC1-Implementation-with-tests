@@ -14,7 +14,7 @@ import ExperimentalStableMemory "mo:base/ExperimentalStableMemory";
 import Principal "mo:base/Principal";
 import Itertools "mo:itertools/Iter";
 import StableTrieMap "mo:StableTrieMap";
-import U "../Modules/Utils";
+import U "../Modules/Token/Utils/Utils";
 import ArchiveTypes "../Types/Types.Archive";
 import TransactionTypes "../Types/Types.Transaction";
 import {ConstantTypes} = "../Types/Types.All";
@@ -52,7 +52,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     stable let MEMORY_PER_PAGE : Nat64 = Nat64.fromNat(64 * KiB);
     stable let MIN_PAGES : Nat64 = 32; // 2MiB == 32 * 64KiB
     stable let PAGES_TO_GROW : Nat64 = 2048; // 64MiB
-    stable let MAX_MEMORY = 32 * GiB;
+    stable let MAX_MEMORY = 26 * GiB;
     stable let BUCKET_SIZE = 1000;
 
     public shared ({ caller }) func init() : async Principal {
@@ -282,9 +282,9 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     };
 
     /// Deposit cycles into this archive canister.
-    public shared func deposit_cycles() : async () {
+    public shared func deposit_cycles<system>() : async () {
         let amount = Cycles.available();
-        let accepted = Cycles.accept(amount);
+        let accepted = Cycles.accept<system>(amount);
         assert (accepted == amount);
     };
 

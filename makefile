@@ -103,7 +103,7 @@ ifeq (, $(shell which curl))
 	@sudo apt-get install curl -y
 endif
 
-ifeq (,$(shell which $(HOME)/bin/dfx))	
+ifeq (,$(shell which dfxvm))	
 	@echo No dfx is installed, dfx will be installed now....
 	curl -fsSL https://internetcomputer.org/install.sh -o install_dfx.sh
 	chmod +x install_dfx.sh
@@ -143,8 +143,8 @@ ifeq (,$(wildcard $(HOME)/.rustup))
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 endif
 
-	mops update
-	dfx upgrade
+#	mops update
+#	dfx upgrade
 #	rustup update
 #	cd tests/Dfnity-ICRC1-Reference && rust update
 #	cd tests/Dfnity-ICRC1-Reference && cargo update

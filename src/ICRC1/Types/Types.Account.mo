@@ -15,8 +15,10 @@ module{
     ///This type is included in the token-data type itself.    
     public type AccountBalances = STMap.StableTrieMap<EncodedAccount, CommonTypes.Balance>;
 
-    public type PrincipalsWhiteListedFees = List.List<Principal>;
+    //This list will probably not have many entries, therefore List is ok for now.
+    public type PrincipalsWhitelistedFees = List.List<Principal>;
 
+    //This list will probably not have many entries, therefore List is ok for now.
     public type AdminPrincipals = List.List<Principal>;
     
     ///For Response

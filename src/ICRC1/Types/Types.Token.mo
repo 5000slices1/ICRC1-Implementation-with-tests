@@ -1,34 +1,48 @@
 import CommonTypes "Types.Common";
 import AccountTypes "Types.Account";
 import TransactionTypes "Types.Transaction";
-import STMap "mo:StableTrieMap";
+//import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
+//import Trie "mo:base/Trie";
 import ArchiveTypes "Types.Archive";
+import HashList "mo:memory-hashlist";
+import HashTable "mo:memory-hashtable";
 
-module{
+module {
 
+
+    //icrc2 types:
+    private type AllowanceArgs = TransactionTypes.AllowanceArgs;
+    private type Allowance = TransactionTypes.Allowance;
+    private type TransferFromArgs = TransactionTypes.TransferFromArgs;
+    private type ApproveArgs = TransactionTypes.ApproveArgs;
+    private type ApproveResponse = TransactionTypes.ApproveResponse;
+    private type TransferFromResponse = TransactionTypes.TransferFromResponse;
+    private type TransferFromError = TransactionTypes.TransferFromError;
+
+    //other types:
     private type GetTransactionsResponse = TransactionTypes.GetTransactionsResponse;
     private type GetTransactionsRequest = TransactionTypes.GetTransactionsRequest;
     private type TransferResult = TransactionTypes.TransferResult;
     private type TransferArgs = TransactionTypes.TransferArgs;
     private type Transaction = TransactionTypes.Transaction;
+    private type ApprovalItem = TransactionTypes.ApprovalItem;
 
     private type ArchiveData = ArchiveTypes.ArchiveData;
-
     private type Value = CommonTypes.Value;
     private type Balance = CommonTypes.Balance;
 
-    private type Account = AccountTypes.Account;    
+    private type Account = AccountTypes.Account;
+    private type EncodedAccount = AccountTypes.EncodedAccount;
     private type AccountBalances = AccountTypes.AccountBalances;
     private type StableBuffer<T> = StableBuffer.StableBuffer<T>;
 
-    
     ///Single Metadata item-type
     public type MetaDatum = (Text, Value);
-    
+
     ///This information is used by the token
     public type MetaData = [MetaDatum];
-     
+
     /// Initial arguments for the setting up the icrc1 token canister
     public type InitArgs = {
         name : Text;
@@ -41,7 +55,7 @@ module{
         initial_balances : [(Account, Balance)];
         min_burn_amount : Balance;
         //Only if set to true then minting is allowed
-        minting_allowed : Bool;        
+        minting_allowed : Bool;
     };
 
     /// [InitArgs](#type.InitArgs) with optional fields for initializing a token canister
@@ -92,7 +106,7 @@ module{
         var minted_tokens : Balance;
 
         // Only if this is set to true then minting is allowed for this token
-        var minting_allowed:Bool;
+        var minting_allowed : Bool;
 
         /// The total amount of burned tokens
         var burned_tokens : Balance;
@@ -104,9 +118,11 @@ module{
         /// The balances of all accounts
         accounts : AccountBalances;
 
-        var feeWhitelistedPrincipals: AccountTypes.PrincipalsWhiteListedFees;
+        //allowances: Trie.Trie2D<EncodedAccount, EncodedAccount, ApprovalItem>;
 
-        var tokenAdmins: AccountTypes.AdminPrincipals;
+        var feeWhitelistedPrincipals : AccountTypes.PrincipalsWhitelistedFees;
+
+        var tokenAdmins : AccountTypes.AdminPrincipals;
 
         /// The standards supported by this token's implementation
         supported_standards : StableBuffer<SupportedStandard>;
@@ -120,13 +136,17 @@ module{
         /// The allowed difference between the ledger time and the time of the device the transaction was created on
         permitted_drift : Nat;
 
+        memoryDatabaseForHashList:HashList.MemoryStorage;
+
+        memoryDatabaseForHashTable:HashTable.MemoryStorage;
+
         /// The recent transactions that have been processed by the ledger.
         /// Only the last 2000 transactions are stored before being archived.
         transactions : StableBuffer<Transaction>;
 
         /// The record that stores the details to the archive canister and number of transactions stored in it
         archive : ArchiveData;
-        
+
     };
 
     public type SupportedStandard = {
@@ -137,29 +157,29 @@ module{
     public type SetParameterError = {
         #GenericError : { error_code : Nat; message : Text };
     };
-        
+
     public type SetTextParameterResult = {
         #Ok : Text;
         #Err : SetParameterError;
     };
-    
+
     public type SetNat8ParameterResult = {
         #Ok : Nat8;
         #Err : SetParameterError;
     };
-    
+
     public type SetBalanceParameterResult = {
         #Ok : Balance;
         #Err : SetParameterError;
     };
-    
-    public type SetAccountParameterResult = {
-        #Ok : Account;
-        #Err : SetParameterError;
-    };
+
+    // public type SetAccountParameterResult = {
+    //     #Ok : Account;
+    //     #Err : SetParameterError;
+    // };
 
     /// Interface for the ICRC token canister
-    public type TokenInterface = actor {
+    public type Icrc1Interface = actor {
 
         /// Returns the name of the token
         icrc1_name : shared query () -> async Text;
@@ -193,14 +213,19 @@ module{
 
     };
 
+    public type Icrc2Interface = actor {
 
-    /// Functions supported by the rosetta 
+        icrc2_allowance : shared query AllowanceArgs -> async Allowance;
+        icrc2_approve : shared ApproveArgs -> async ApproveResponse;
+        icrc2_transfer_from : shared TransferFromArgs -> async TransferFromResponse;
+    };
+
+    /// Functions supported by the rosetta
     public type RosettaInterface = actor {
         get_transactions : shared query (GetTransactionsRequest) -> async GetTransactionsResponse;
     };
 
     /// Interface of the ICRC token and Rosetta canister
-    public type FullInterface = TokenInterface and RosettaInterface;
-
+    public type FullInterface = Icrc1Interface and Icrc2Interface and RosettaInterface;
 
 };
