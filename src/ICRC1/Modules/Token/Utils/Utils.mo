@@ -78,7 +78,7 @@ module {
 
     // Return defaultFee or if principalfrom/principalTo is fee whitelisted then 0 is returned.
     public func get_token_fee(principalFrom:Principal, principalTo:Principal,
-     token : TokenData):Nat{
+     token : TokenData):Balance{
 
         let listSize:Nat = List.size<Principal>(token.feeWhitelistedPrincipals);
         if (listSize ==0){
@@ -101,9 +101,9 @@ module {
     };
 
     public func get_real_token_fee(principalFrom:Principal, principalTo:Principal,
-    token : TokenData, feeSpecified:?Nat):Nat{
+    token : TokenData, feeSpecified:?Balance):Balance{
 
-        var result:Nat = get_token_fee(principalFrom, principalTo, token);
+        var result:Balance = get_token_fee(principalFrom, principalTo, token);
         switch(feeSpecified){
             case (?feeValue){
                 if (result > 0){

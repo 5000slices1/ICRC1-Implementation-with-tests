@@ -186,21 +186,16 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // ------------------------------------------------------------------------------------------
     // ICRC2
    
-    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResponse {
-        
-        return #Ok(0);
+    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResult {
+        ICRC2.icrc2_approve(caller, approveArgs, token, memoryController);        
     };
 
-    public shared query ({ caller }) func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {
-        let dummyResult : T.TransactionTypes.Allowance = {
-            allowance = 0;
-            expires_at = null;
-        };
-        return dummyResult;
+    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {        
+        ICRC2.icrc2_allowance(allowanceArgs, memoryController);
     };
 
     public shared ({ caller }) func icrc2_transfer_from(transferFromArgs : T.TransactionTypes.TransferFromArgs) : async T.TransactionTypes.TransferFromResponse {
-        return #Ok(0);
+        await* ICRC2.icrc2_transfer_from(caller, transferFromArgs, token, memoryController);        
     };
 
     // ------------------------------------------------------------------------------------------

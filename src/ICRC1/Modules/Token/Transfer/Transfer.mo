@@ -32,7 +32,7 @@ module {
     private type TransferError = TransactionTypes.TransferError;
         
     /// Checks if a transaction memo is valid
-    private func validate_memo(memo : ?Memo) : Bool {
+    public func validate_memo(memo : ?Memo) : Bool {
         switch (memo) {
             case (?bytes) {
                 bytes.size() <= 32;
@@ -42,7 +42,7 @@ module {
     };
 
     /// Checks if the `created_at_time` of a transfer request is before the accepted time range
-    private func is_too_old(token : TokenData, created_at_time : Nat64) : Bool {
+    public func is_too_old(token : TokenData, created_at_time : Nat64) : Bool {
         let { permitted_drift; transaction_window } = token;
 
         let lower_bound = Time.now() - transaction_window - permitted_drift;
@@ -50,7 +50,7 @@ module {
     };
 
     /// Checks if the `created_at_time` of a transfer request has not been reached yet relative to the canister's time.
-    private func is_in_future(token : TokenData, created_at_time : Nat64) : Bool {
+    public func is_in_future(token : TokenData, created_at_time : Nat64) : Bool {
         let upper_bound = Time.now() + token.permitted_drift;
         Nat64.toNat(created_at_time) > upper_bound;
     };
@@ -136,7 +136,7 @@ module {
     };
 
     /// Checks if a transfer fee is valid
-    private func validate_fee(
+    public func validate_fee(
         token : TokenData,
         opt_fee : ?Balance,
     ) : Bool {
