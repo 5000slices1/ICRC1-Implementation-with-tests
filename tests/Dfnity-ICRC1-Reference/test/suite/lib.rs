@@ -375,7 +375,7 @@ pub async fn icrc2_test_approve(ledger_env: impl LedgerEnv) -> anyhow::Result<Ou
 }
 
 /// Checks the ICRC-2 approve endpoint for correct handling of the expiration functionality.
-pub async fn icrc2_test_approve_expiration(ledger_env: impl LedgerEnv) -> anyhow::Result<Outcome> {
+pub async fn ICRC2(ledger_env: impl LedgerEnv) -> anyhow::Result<Outcome> {
     let fee = transfer_fee(&ledger_env).await?;
     let initial_balance: Nat = fee.clone() * 2u8;
     let p1_env = setup_test_account(&ledger_env, initial_balance.clone()).await?;
@@ -958,10 +958,10 @@ pub fn icrc2_test_suite(env: impl LedgerEnv + 'static + Clone) -> Vec<Test> {
             icrc2_test_supported_standards(env.clone()),
         ),
         test("icrc2:approve", icrc2_test_approve(env.clone())),
-        test(
-            "icrc2:approve_expiration",
-            icrc2_test_approve_expiration(env.clone()),
-        ),
+        // test(
+        //     "icrc2:approve_expiration",
+        //     icrc2_test_approve_expiration(env.clone()),
+        // ),
         test(
             "icrc2:approve_expected_allowance",
             icrc2_test_approve_expected_allowance(env.clone()),

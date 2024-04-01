@@ -207,20 +207,37 @@ module {
     //     - The ledger debited the specified amount of tokens and fees from the from account.
     //     - The ledger credited the specified amount to the to account.
 
-    public type TransferFromArgs = {
-        to : Account;
-        fee : ?Nat;
-        spender_subaccount : ?[Nat8];
+    public type TransferFromArgs = {        
+        spender_subaccount : ?Subaccount;
 
-        //Transfers a token amount from the from account to the to account using the allowance of the 
-        //spender's account (SpenderAccount = { owner = caller; subaccount = spender_subaccount }). 
-        //The ledger draws the fees from the from account.
+        // Transfers a token amount from the from account to the to account using the allowance of the 
+        // spender's account (SpenderAccount = { owner = caller; subaccount = spender_subaccount }). 
+        // The ledger draws the fees from the from account.
         from : Account;
-
-        memo : ?[Nat8];
+        to : Account;
+        amount : Balance;
+        fee : ?Balance;
+        memo : ?Memo;
         created_at_time : ?Nat64;
-        amount : Nat;
     };
+
+    /// Internal representation of a Transaction From request
+    public type TransactionFromRequest = {
+        kind : TxKind;
+        from : Account;
+        to : Account;
+        spender : Account;
+        amount : Balance;
+        fee : ?Balance;
+        memo : ?Memo;
+        created_at_time : ?Nat64;
+        encoded : {
+            from : EncodedAccount;
+            to : EncodedAccount;
+            spender : EncodedAccount;
+        };
+    };
+
 
     public type TransferFromError = {
         #GenericError : { message : Text; error_code : Nat };
@@ -245,11 +262,6 @@ module {
     //  -------------------------------------------------------------------
     /// ICRC2 Approval 
     
-    // public type OperationKind = {
-    //     #approve;
-    // };
-
-
     /// Arguments for an approve operation
 
     // Specification source: https://github.com/chichangb/ICRC-1/blob/main/standards/ICRC-2/README.md
@@ -260,6 +272,7 @@ module {
     //    transfers do not exceed the allowance. 
     //    -> This is the default behaviour from the ICRC2 specifiction. But in this implementation
     //       we can overrule this by the type 'UserApprovalSettings', to allow transfer_from only one time if wanted.
+    //       (not implemented, yet)
     //
     // (2) 
     //    The call resets the allowance and the expiration date for the spender account to the given values.
@@ -331,37 +344,13 @@ module {
 
 
     public type DbAllowance = {
-        amount : Balance;
+        allowance : Balance;
         expires_at : ?Nat64;
         encoded : {
             from : EncodedAccount;
             spender : EncodedAccount;
         };
     };
-
-    //     public type Approve = {
-    //     fee : ?Nat;
-    //     from : Account;
-    //     memo : ?[Nat8];
-    //     created_at_time : ?Nat64;
-
-        
-    //     amount : Nat;
-
-
-    //     expected_allowance : ?Nat;
-
-    //     expires_at : ?Nat64;
-
-       
-    //     spender : Account;
-    // };
-
-
-
-
-   
-
 
     public type ApproveError = {
         #BadFee : { expected_fee : Nat };
@@ -384,18 +373,7 @@ module {
                                                                 
     };
 
-
     
-    // public type ApprovalItem = {
-    //     from: ?Account;
-    //     spender:?Account;
-    //     created_at_time: Nat64;
-    //     amount:Nat;
-    //     expires_at:?Nat64;
-
-    //     //If this is set to true then this approval will be removed after 'transfer_from' was done. 
-    //     only_one_time_useable:Bool;
-    // };
 
     //The user can define global settings for 'only_one_time_useable' and 'expires_at'.
     //For security users can only set these settings if they hold at least 1.0 token in wallet.

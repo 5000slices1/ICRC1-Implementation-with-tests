@@ -5,6 +5,7 @@ import Buffer "mo:base/Buffer";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Option "mo:base/Option";
+import Nat "mo:base/Nat";
 import T "../../../../Types/Types.All";
 import ModelType "../../../../Types/Types.Model";
 
@@ -15,6 +16,7 @@ import HashTable "mo:memory-hashtable";
 import HashTableType "mo:memory-hashtable/modules/memoryHashTable";
 import AccountTypes "../../../../Types/Types.Account";
 import Account "../../../../Modules/Token/Account/Account";
+
 
 
 module {
@@ -45,7 +47,7 @@ public class DatabaseController(databaseStorages:ModelType.DatabaseStorages){
         // add/replace approval request
         
         // For now DbAllowance and WriteApproveRequest have the same structure
-        let dbAllowance:T.TransactionTypes.DbAllowance = app_req;
+        let dbAllowance:T.TransactionTypes.DbAllowance = {app_req with allowance = app_req.amount};
 
         let dbAllowance_as_blob:Blob = to_candid(dbAllowance);        
         ignore hashTable.put(allowanceKey, dbAllowance_as_blob);    
@@ -63,7 +65,7 @@ public class DatabaseController(databaseStorages:ModelType.DatabaseStorages){
             case(?allowanceResult) { 
                 let result:T.TransactionTypes.Allowance =  
                 { 
-                    allowance = allowanceResult.amount; 
+                    allowance = allowanceResult.allowance; 
                     expires_at = allowanceResult.expires_at 
                 };
                 return result;
@@ -74,6 +76,26 @@ public class DatabaseController(databaseStorages:ModelType.DatabaseStorages){
             };
         };
 
+    };
+
+    public func reduce_allowance_amount(owner:AccountTypes.Account, spender:AccountTypes.Account, reduceByAmount:T.Balance){
+
+        let ownerEncodedAccount:EncodedAccount = Account.encode(owner);
+        let spenderEncodedAccount:EncodedAccount = Account.encode(spender);
+        let allowanceItemOrNull:?T.TransactionTypes.DbAllowance= get_allowance_internal(ownerEncodedAccount, spenderEncodedAccount);
+        switch(allowanceItemOrNull){
+            case (?allowanceItem){
+                let newAmount:Nat = Nat.max(allowanceItem.allowance - reduceByAmount, 0);
+                let newAllowance:T.TransactionTypes.DbAllowance = { allowanceItem with allowance = newAmount};
+
+                let allowanceKey:Blob = get_allowance_key(ownerEncodedAccount, spenderEncodedAccount);
+                let dbAllowance_as_blob:Blob = to_candid(newAllowance);        
+                ignore hashTable.put(allowanceKey, dbAllowance_as_blob);   
+            };
+            case (_){
+                // do nothing
+            };
+        }         
     };
 
     private func get_allowance_internal(owner:EncodedAccount, spender:EncodedAccount):?T.TransactionTypes.DbAllowance{

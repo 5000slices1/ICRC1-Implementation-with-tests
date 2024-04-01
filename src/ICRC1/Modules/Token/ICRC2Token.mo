@@ -1,34 +1,21 @@
-import Array "mo:base/Array";
-import Iter "mo:base/Iter";
 import Option "mo:base/Option";
 import Time "mo:base/Time";
-import List "mo:base/List";
-import Nat "mo:base/Nat";
-import Cycles "mo:base/ExperimentalCycles";
-import Text "mo:base/Text";
-import SB "mo:StableBuffer/StableBuffer";
-import ICRC1 "ICRC1Token";
 import Principal "mo:base/Principal";
-import Debug "mo:base/Debug";
-import Error "mo:base/Error";
-import Itertools "mo:itertools/Iter";
-import Trie "mo:base/Trie";
-import Blob "mo:base/Blob";
 import Result "mo:base/Result";
 import Bool "mo:base/Bool";
 import T "../../Types/Types.All";
-import Constants "../../Types/Types.Constants";
 import Account "Account/Account";
-import Region "mo:base/Region";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
+import Nat "mo:base/Nat";
 import Utils "Utils/Utils";
-import Model "../../Types/Types.Model";
-import HashList "mo:memory-hashlist";
 import MemoryController "../../Modules/Token/MemoryController/MemoryController";
 import Converters "../../Modules/Converters/Converters";
 import TransferHelper "../../Modules/Token/Transfer/Transfer";
 import CommonTypes "../../Types/Types.Common";
+import ICRC1 "ICRC1Token";
+import Debug "mo:base/Debug";
+
 
 /// The ICRC2 methods implementation
 module {
@@ -46,7 +33,7 @@ module {
         let app_req = Converters.create_approve_req(args, caller);
 
         // check if caller has enough token amount for the approval fee
-        switch (validate_request(token,memoryController, app_req)) {
+        switch (validate_approved_request(token,memoryController, app_req)) {
             case (#err(errorType)) {
                 return #Err(errorType);
             };
@@ -60,7 +47,7 @@ module {
             token,
             app_req.fee,
         );
-
+  
         if (real_fee_to_use > 0) {
             // burn fee
             Utils.burn_balance(token, app_req.encoded.from, real_fee_to_use);
@@ -79,51 +66,136 @@ module {
 
     public func icrc2_transfer_from(
         caller : Principal,
-        transferFromArgs : T.TransactionTypes.TransferFromArgs,
+        args : T.TransactionTypes.TransferFromArgs,
         token : TokenData,
-    ) : async T.TransactionTypes.TransferFromResponse {
+        memoryController : MemoryController.MemoryController,
+    ) : async* T.TransactionTypes.TransferFromResponse {
 
-        return #Ok(0);
+        // let spender = {
+        //     owner = caller;
+        //     subaccount = args.spender_subaccount;
+        // };
+
+        let tx_kind: T.TransactionTypes.TxKind = if (args.from == token.minting_account) {
+            #mint;
+        } else if (args.to == token.minting_account) {
+            #burn;
+        } else {
+            #transfer;
+        };
+
+        let tx_request: T.TransactionTypes.TransactionFromRequest 
+        = Converters.create_transfer_from_req(args, caller, token,tx_kind);
+
+        let validationResult = validate_transferFrom_request(token,tx_request, memoryController );
+        switch (validationResult){
+            case (#err(errorType)) {
+                return #Err(errorType);
+            };
+            case (#ok(_)) {};
+        };
+
+        // If from or to is Fee-Whitelisted then 0 fee will be used
+        let real_fee_to_use : Balance = Utils.get_real_token_fee(
+            tx_request.from.owner,
+            tx_request.to.owner,
+            token,
+            tx_request.fee,
+        );
+        
+        // Reduce the allowance-amount
+        let reduceAmount:Nat = Nat.max(tx_request.amount + real_fee_to_use, 0);
+        
+        let spender:T.AccountTypes.Account = { owner = caller; subaccount = args.spender_subaccount };
+        memoryController.databaseController.reduce_allowance_amount(tx_request.from, spender, reduceAmount);
+
+
+        // process transaction
+        switch (tx_request.kind) {
+            case (#mint) {
+                Utils.mint_balance(token, tx_request.encoded.to, tx_request.amount);
+            };
+            case (#burn) {
+                Utils.burn_balance(token, tx_request.encoded.from, tx_request.amount);
+            };
+            case (#transfer) {
+                Utils.transfer_balance(token, {tx_request with fee = real_fee_to_use});
+
+                if (real_fee_to_use > 0){
+                    // burn fee
+                    Utils.burn_balance(token, tx_request.encoded.from, real_fee_to_use);
+                };
+                
+            };
+        };
+
+        let transactionRequest:T.TransactionTypes.TransactionRequest = 
+        {
+            tx_request with fee = real_fee_to_use
+        };
+        // store the transaction
+        let tx_index:Nat = await* ICRC1.store_transaction
+        (
+            token,transactionRequest, 
+            memoryController.model.settings.archive_canisterIds
+        );
+
+        return #Ok(tx_index);
     };
 
-    // private func create_approve_req(
-    //     args : T.TransactionTypes.ApproveArgs,
-    //     owner : Principal,
-    //     tx_kind : T.TransactionTypes.OperationKind,
-    // ) : T.ApproveTxRequest {
 
-    //     let from = {
-    //         owner;
-    //         subaccount = args.from_subaccount;
-    //     };
 
-    //     let to = {
-    //         owner = args.spender;
-    //         subaccount = null;
-    //     };
+   /// Checks if a Transfer From request is valid
+    public func validate_transferFrom_request(
+        token : TokenData,
+        txf_req : T.TransactionTypes.TransactionFromRequest,
+        memoryController : MemoryController.MemoryController,
+    ) : Result.Result<(), T.TransactionTypes.TransferFromError> {
 
-    //     let encoded = {
-    //         from = Account.encode(from);
-    //         to = Account.encode(to);
-    //     };
 
-    //     {
-    //         kind = tx_kind;
-    //         from = from;
-    //         spender = to;
-    //         amount = args.amount;
-    //         expires_at = args.expires_at;
-    //         fee = args.fee;
-    //         memo = args.memo;
-    //         created_at_time = args.created_at_time;
-    //         expected_allowance = args.expected_allowance;
-    //         // args with kind = #approve;
-    //         encoded;
-    //     };
-    // };
+        let { allowance; expires_at } 
+        = memoryController.databaseController.get_allowance(txf_req.from, txf_req.spender);    
+        //Utils.get_allowance(token.approvals, txf_req.encoded);
+
+        let real_fee_to_be_used:Balance = Utils.get_real_token_fee(
+            txf_req.from.owner,
+            txf_req.spender.owner,
+            token,
+            txf_req.fee,
+        );
+
+        if (allowance < txf_req.amount + real_fee_to_be_used) {
+            return #err(
+                #InsufficientAllowance({
+                    allowance = allowance;
+                })
+            );
+        };
+        if (not validate_expiration(token, expires_at)) {
+            return #err(
+                #GenericError({
+                    error_code = 0;
+                    message = "Allowance has already expired";
+                })
+            );
+        };
+
+        let txReqForValidation:T.TransactionTypes.TransactionRequest = 
+        { txf_req with fee = real_fee_to_be_used};
+
+
+        switch (TransferHelper.validate_request(token, txReqForValidation, txf_req.fee)) {
+            case (#err(errorType)) {
+                return #err(errorType);
+            };
+            case (#ok(_)) {};
+        };
+
+        return #ok();
+    };
 
     /// Checks if an approve request is valid
-    private func validate_request(
+    private func validate_approved_request(
         token : TokenData,
         memoryController : MemoryController.MemoryController,
         app_req : T.TransactionTypes.ApproveRequest,
@@ -199,23 +271,16 @@ module {
             case null {};
             case (?expected) {
 
-                let allowance_record_or_null = memoryController.databaseController.get_allowance(app_req.encoded.from, app_req.encoded.spender);
+                let allowance_record = memoryController.databaseController.get_allowance(app_req.from, app_req.spender);
 
-                switch (allowance_record_or_null) {
-                    case (?allowance_record) {
-                        if (expected != allowance_record.amount) {
-                            return #err(
-                                #AllowanceChanged {
-                                    current_allowance = allowance_record.amount;
-                                }
-                            );
-                        };
-
-                    };
-                    case null {
-                        // do nothing
-                    };
-                };                
+              
+                if (expected != allowance_record.allowance) {
+                    return #err(
+                        #AllowanceChanged {
+                            current_allowance = allowance_record.allowance;
+                        }
+                    );
+                };                                                 
             };
         };
 
