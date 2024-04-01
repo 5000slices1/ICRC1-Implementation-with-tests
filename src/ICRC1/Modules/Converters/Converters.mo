@@ -7,6 +7,8 @@ import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Itertools "mo:itertools/Iter";
 import Constants "../../Types/Types.Constants";
+import Account "../Token/Account/Account";
+
 
 module {
 
@@ -79,6 +81,27 @@ module {
         };
     };
 
+    // Formats the different operation arguments into
+    // an `ApproveRequest`, an internal type to access fields easier.
+    public func create_approve_req(
+        args : T.TransactionTypes.ApproveArgs,
+        owner : Principal,
+    ) : T.TransactionTypes.ApproveRequest {
 
+        let from = {
+            owner;
+            subaccount = args.from_subaccount;
+        };
+
+        let encoded = {
+            from = Account.encode(from);
+            spender = Account.encode(args.spender);
+        };
+
+        {
+            args with from = from;
+            encoded;
+        };
+    };
 
 };

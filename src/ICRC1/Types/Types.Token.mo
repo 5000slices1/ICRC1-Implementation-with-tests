@@ -16,7 +16,7 @@ module {
     private type Allowance = TransactionTypes.Allowance;
     private type TransferFromArgs = TransactionTypes.TransferFromArgs;
     private type ApproveArgs = TransactionTypes.ApproveArgs;
-    private type ApproveResponse = TransactionTypes.ApproveResponse;
+    private type ApproveResponse = TransactionTypes.ApproveResult;
     private type TransferFromResponse = TransactionTypes.TransferFromResponse;
     private type TransferFromError = TransactionTypes.TransferFromError;
 
@@ -26,7 +26,7 @@ module {
     private type TransferResult = TransactionTypes.TransferResult;
     private type TransferArgs = TransactionTypes.TransferArgs;
     private type Transaction = TransactionTypes.Transaction;
-    private type ApprovalItem = TransactionTypes.ApprovalItem;
+    // private type ApprovalItem = TransactionTypes.ApprovalItem;
 
     private type ArchiveData = ArchiveTypes.ArchiveData;
     private type Value = CommonTypes.Value;

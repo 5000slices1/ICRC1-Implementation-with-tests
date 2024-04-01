@@ -20,54 +20,61 @@ import T "../../Types/Types.All";
 import Constants "../../Types/Types.Constants";
 import Account "Account/Account";
 import Region "mo:base/Region";
+import Nat64 "mo:base/Nat64";
+import Int "mo:base/Int";
 import Utils "Utils/Utils";
 import Model "../../Types/Types.Model";
 import HashList "mo:memory-hashlist";
-
+import MemoryController "../../Modules/Token/MemoryController/MemoryController";
+import Converters "../../Modules/Converters/Converters";
+import TransferHelper "../../Modules/Token/Transfer/Transfer";
+import CommonTypes "../../Types/Types.Common";
 
 /// The ICRC2 methods implementation
 module {
 
     private type TokenData = T.TokenTypes.TokenData;
+    private type Balance = CommonTypes.Balance;
 
     public func icrc2_approve(
         caller : Principal,
-        approveArgs : T.TransactionTypes.ApproveArgs,
+        args : T.TransactionTypes.ApproveArgs,
         token : TokenData,
-        model:Model.Model
-    ) : async T.TransactionTypes.ApproveResponse {
+        memoryController : MemoryController.MemoryController,
+    ) : T.TransactionTypes.ApproveResult {
 
-        // if (Principal.isAnonymous(caller)){
-        //     throw Error.reject("anonymous user is not allowed to transfer funds");
-        // };
+        let app_req = Converters.create_approve_req(args, caller);
 
         // check if caller has enough token amount for the approval fee
-        
-
-        let from = {
-            owner = caller;
-            subaccount = approveArgs.from_subaccount;
+        switch (validate_request(token,memoryController, app_req)) {
+            case (#err(errorType)) {
+                return #Err(errorType);
+            };
+            case (#ok(_)) {};
         };
 
-       
+        // Is owner is Fee-whitelisted then zero fee will be used for the approval
+        let real_fee_to_use : Balance = Utils.get_real_token_fee(
+            app_req.from.owner,
+            app_req.from.owner,
+            token,
+            app_req.fee,
+        );
 
-        let tx_kind = #approve;
+        if (real_fee_to_use > 0) {
+            // burn fee
+            Utils.burn_balance(token, app_req.encoded.from, real_fee_to_use);
+        };
 
-        //let tx_req = Utils.create_approve_req(args, caller, tx_kind);
-
-
-        return #Ok(0);
+        return memoryController.databaseController.write_approval(app_req);
     };
 
     public func icrc2_allowance(
         allowanceArgs : T.TransactionTypes.AllowanceArgs,
-        token : TokenData,
-    ) : async T.TransactionTypes.Allowance {
-        let dummyResult : T.TransactionTypes.Allowance = {
-            allowance = 0;
-            expires_at = null;
-        };
-        return dummyResult;
+        memoryController : MemoryController.MemoryController
+    ) : T.TransactionTypes.Allowance {
+
+        memoryController.databaseController.get_allowance(allowanceArgs.account, allowanceArgs.spender);
     };
 
     public func icrc2_transfer_from(
@@ -78,7 +85,6 @@ module {
 
         return #Ok(0);
     };
-
 
     // private func create_approve_req(
     //     args : T.TransactionTypes.ApproveArgs,
@@ -116,5 +122,140 @@ module {
     //     };
     // };
 
+    /// Checks if an approve request is valid
+    private func validate_request(
+        token : TokenData,
+        memoryController : MemoryController.MemoryController,
+        app_req : T.TransactionTypes.ApproveRequest,
+    ) : Result.Result<(), T.TransactionTypes.ApproveError> {
+
+        if (app_req.from.owner == app_req.spender.owner) {
+            return #err(
+                #GenericError({
+                    error_code = 0;
+                    message = "The spender account owner cannot be equal to the source account owner.";
+                })
+            );
+        };
+
+        if (not Account.validate(app_req.from)) {
+            return #err(
+                #GenericError({
+                    error_code = 0;
+                    message = "Invalid account entered for approval source. " # debug_show (app_req.from);
+                })
+            );
+        };
+
+        if (not Account.validate(app_req.spender)) {
+            return #err(
+                #GenericError({
+                    error_code = 0;
+                    message = "Invalid account entered for approval spender. " # debug_show (app_req.spender);
+                })
+            );
+        };
+
+        // TODO: Verify if approval memo should be validated for approvals.
+        if (not TransferHelper.validate_memo(app_req.memo)) {
+            return #err(
+                #GenericError({
+                    error_code = 0;
+                    message = "Memo must not be more than 32 bytes";
+                })
+            );
+        };
+
+        // TODO: Verify if approval fee should be validated as a transfer fee.
+        if (not TransferHelper.validate_fee(token, app_req.fee)) {
+            return #err(
+                #BadFee {
+                    expected_fee = token.defaultFee;
+                }
+            );
+        };
+
+        let balance : T.Balance = Utils.get_balance(
+            token.accounts,
+            app_req.encoded.from,
+        );
+
+        // Is owner is Fee-whitelisted then 0 fee will be used for the approval
+        let real_fee_to_use : Balance = Utils.get_real_token_fee(
+            app_req.from.owner,
+            app_req.from.owner,
+            token,
+            app_req.fee,
+        );
+
+        // If no approval fee provided, validates against transaction fee.
+        if (Option.get(app_req.fee, real_fee_to_use) > balance) {
+            return #err(#InsufficientFunds { balance });
+        };
+
+        // Validates that the approval contains the expected allowance
+        
+        switch (app_req.expected_allowance) {
+            case null {};
+            case (?expected) {
+
+                let allowance_record_or_null = memoryController.databaseController.get_allowance(app_req.encoded.from, app_req.encoded.spender);
+
+                switch (allowance_record_or_null) {
+                    case (?allowance_record) {
+                        if (expected != allowance_record.amount) {
+                            return #err(
+                                #AllowanceChanged {
+                                    current_allowance = allowance_record.amount;
+                                }
+                            );
+                        };
+
+                    };
+                    case null {
+                        // do nothing
+                    };
+                };                
+            };
+        };
+
+        if (not validate_expiration(token, app_req.expires_at)) {
+            return #err(
+                #Expired {
+                    ledger_time = Nat64.fromNat(Int.abs(Time.now()));
+                }
+            );
+        };
+
+        switch (app_req.created_at_time) {
+            case (null) {};
+            case (?created_at_time) {
+
+                if (TransferHelper.is_too_old(token, created_at_time)) {
+                    return #err(#TooOld);
+                };
+
+                if (TransferHelper.is_in_future(token, created_at_time)) {
+                    return #err(
+                        #CreatedInFuture {
+                            ledger_time = Nat64.fromNat(Int.abs(Time.now()));
+                        }
+                    );
+                };
+            };
+        };
+
+        #ok();
+    };
+
+    // Checks if an approval expiration is greater than the current ledger time
+    public func validate_expiration(token : TokenData, expires_at : ?Nat64) : Bool {
+        switch (expires_at) {
+            case null { return true };
+            case (?expiration) {
+                return TransferHelper.is_in_future(token, expiration);
+            };
+        };
+    };
 
 };
