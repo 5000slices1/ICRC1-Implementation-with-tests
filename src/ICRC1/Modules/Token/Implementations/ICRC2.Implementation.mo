@@ -3,17 +3,17 @@ import Time "mo:base/Time";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Bool "mo:base/Bool";
-import T "../../Types/Types.All";
-import Account "Account/Account";
+import T "../../../Types/Types.All";
+import Account "../Account/Account";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Nat "mo:base/Nat";
-import Utils "Utils/Utils";
-import MemoryController "../../Modules/Token/MemoryController/MemoryController";
-import Converters "../../Modules/Converters/Converters";
-import TransferHelper "../../Modules/Token/Transfer/Transfer";
-import CommonTypes "../../Types/Types.Common";
-import ICRC1 "ICRC1Token";
+import Utils "../Utils/Utils";
+import MemoryController "../../../Modules/Token/MemoryController/MemoryController";
+import Converters "../../../Modules/Converters/Converters";
+import TransferHelper "../../../Modules/Token/Transfer/Transfer";
+import CommonTypes "../../../Types/Types.Common";
+import ICRC1 "ICRC1.Implementation";
 
 /// The ICRC2 methods implementation
 module {

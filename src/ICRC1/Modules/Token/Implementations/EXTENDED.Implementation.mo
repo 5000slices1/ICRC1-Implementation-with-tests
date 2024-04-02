@@ -2,10 +2,10 @@ import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
-import Utils "Utils/Utils";
-import T "../../Types/Types.All";
-import { ConstantTypes } = "../../Types/Types.All";
-import ICRC1 "ICRC1Token";
+import Utils "../Utils/Utils";
+import T "../../../Types/Types.All";
+import { ConstantTypes } = "../../../Types/Types.All";
+import ICRC1 "ICRC1.Implementation";
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)

@@ -3,12 +3,12 @@ import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
-import Account "Account/Account";
+import Account "../Account/Account";
 import Trie "mo:base/Trie";
-import Utils "Utils/Utils";
-import Transfer "Transfer/Transfer";
-import T "../../Types/Types.All";
-import ArchiveHelper "Archive/ArchiveHelper";
+import Utils "../Utils/Utils";
+import Transfer "../Transfer/Transfer";
+import T "../../../Types/Types.All";
+import ArchiveHelper "../Archive/ArchiveHelper";
 
 module {
     let { SB } = Utils;

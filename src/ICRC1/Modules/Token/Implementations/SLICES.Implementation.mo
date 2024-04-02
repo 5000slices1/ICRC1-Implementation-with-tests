@@ -1,19 +1,14 @@
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
-
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Itertools "mo:itertools/Iter";
-
 import Trie "mo:base/Trie";
 import List "mo:base/List";
-
-import Utils "Utils/Utils";
-
-import T "../../Types/Types.All";
-
-import Account "Account/Account";
+import Utils "../Utils/Utils";
+import T "../../../Types/Types.All";
+import Account "../Account/Account";
 
 /// Slices Token implementations
 /// ( == functions needed for the future Slices-apps )

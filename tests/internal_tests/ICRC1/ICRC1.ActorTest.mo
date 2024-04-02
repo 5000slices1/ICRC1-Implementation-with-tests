@@ -4,12 +4,12 @@ import List "mo:base/List";
 import Float "mo:base/Float";
 import Int "mo:base/Int";
 import ActorSpec "../utils/ActorSpec";
-import ICRC1 "../../../src/ICRC1/Modules/Token/ICRC1Token";
+import ICRC1 "../../../src/ICRC1/Modules/Token/Implementations/ICRC1.Implementation";
 import T "../../../src/ICRC1/Types/Types.All";
 import U "../../../src/ICRC1/Modules/Token/Utils/Utils";
 import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import TokenTypes "../../../src/ICRC1/Types/Types.Token";
-import ExtendedToken "../../../src/ICRC1/Modules/Token/ExtendedToken";
+import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
 
 module {
 
