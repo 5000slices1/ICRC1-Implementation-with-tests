@@ -20,17 +20,11 @@ module {
     skipped : Nat;
   };
 
-   public type AssertParam<E,A> = object{
+  public type AssertParam<E, A> = object {
     expected : ?E;
     actual : ?A;
-    areEqual : (?E,?A) -> Bool;
+    areEqual : (?E, ?A) -> Bool;
     description : Text;
-   };
-
-    
-
-  func eqStatus(x : Status, y : Status) : Bool {
-    x.failed == y.failed and x.passed == y.passed and x.pending == y.pending and x.skipped == y.skipped;
   };
 
   let emptyStatus : Status = {
@@ -142,7 +136,7 @@ module {
 
   public let test = it;
 
-  public func skip(name_ : Text, passed_ : Bool) : Group {
+  public func skip(name_ : Text) : Group {
     {
       name = name_;
       groups = [];
@@ -187,18 +181,16 @@ module {
     allTrue;
   };
 
-
-   public func assertAllEqualWithDescription<E,A>(params: [AssertParam<E,A>]) : Bool {
+  public func assertAllEqualWithDescription<E, A>(params : [AssertParam<E, A>]) : Bool {
     var allTrue = true;
-    for (val in params.vals()) {      
+    for (val in params.vals()) {
       if (val.areEqual(val.expected, val.actual) == false) {
-        Debug.print("Testing: '" # val.description # "' ': failed");        
-        allTrue:=false;
-      }
-      else {
-      Debug.print("Testing: '" # val.description # "' ': passed");
+        Debug.print("Testing: '" # val.description # "' ': failed");
+        allTrue := false;
+      } else {
+        Debug.print("Testing: '" # val.description # "' ': passed");
       };
-      
+
     };
     allTrue;
   };

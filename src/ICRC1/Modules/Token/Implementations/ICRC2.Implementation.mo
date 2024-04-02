@@ -3,19 +3,17 @@ import Time "mo:base/Time";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Bool "mo:base/Bool";
-import T "../../Types/Types.All";
-import Account "Account/Account";
+import T "../../../Types/Types.All";
+import Account "../Account/Account";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Nat "mo:base/Nat";
-import Utils "Utils/Utils";
-import MemoryController "../../Modules/Token/MemoryController/MemoryController";
-import Converters "../../Modules/Converters/Converters";
-import TransferHelper "../../Modules/Token/Transfer/Transfer";
-import CommonTypes "../../Types/Types.Common";
-import ICRC1 "ICRC1Token";
-import Debug "mo:base/Debug";
-
+import Utils "../Utils/Utils";
+import MemoryController "../../../Modules/Token/MemoryController/MemoryController";
+import Converters "../../../Modules/Converters/Converters";
+import TransferHelper "../../../Modules/Token/Transfer/Transfer";
+import CommonTypes "../../../Types/Types.Common";
+import ICRC1 "ICRC1.Implementation";
 
 /// The ICRC2 methods implementation
 module {
@@ -33,7 +31,7 @@ module {
         let app_req = Converters.create_approve_req(args, caller);
 
         // check if caller has enough token amount for the approval fee
-        switch (validate_approved_request(token,memoryController, app_req)) {
+        switch (validate_approved_request(token, memoryController, app_req)) {
             case (#err(errorType)) {
                 return #Err(errorType);
             };
@@ -41,13 +39,13 @@ module {
         };
 
         // Is owner is Fee-whitelisted then zero fee will be used for the approval
-        let real_fee_to_use : Balance = Utils.get_real_token_fee(
+        let real_fee_to_use : Balance = Utils.get_real_token_fee_with_specified_defaultFee(
             app_req.from.owner,
             app_req.from.owner,
             token,
             app_req.fee,
         );
-  
+
         if (real_fee_to_use > 0) {
             // burn fee
             Utils.burn_balance(token, app_req.encoded.from, real_fee_to_use);
@@ -58,7 +56,7 @@ module {
 
     public func icrc2_allowance(
         allowanceArgs : T.TransactionTypes.AllowanceArgs,
-        memoryController : MemoryController.MemoryController
+        memoryController : MemoryController.MemoryController,
     ) : T.TransactionTypes.Allowance {
 
         memoryController.databaseController.get_allowance(allowanceArgs.account, allowanceArgs.spender);
@@ -71,12 +69,7 @@ module {
         memoryController : MemoryController.MemoryController,
     ) : async* T.TransactionTypes.TransferFromResponse {
 
-        // let spender = {
-        //     owner = caller;
-        //     subaccount = args.spender_subaccount;
-        // };
-
-        let tx_kind: T.TransactionTypes.TxKind = if (args.from == token.minting_account) {
+        let tx_kind : T.TransactionTypes.TxKind = if (args.from == token.minting_account) {
             #mint;
         } else if (args.to == token.minting_account) {
             #burn;
@@ -84,11 +77,10 @@ module {
             #transfer;
         };
 
-        let tx_request: T.TransactionTypes.TransactionFromRequest 
-        = Converters.create_transfer_from_req(args, caller, token,tx_kind);
+        let tx_request : T.TransactionTypes.TransactionFromRequest = Converters.create_transfer_from_req(args, caller, token, tx_kind);
 
-        let validationResult = validate_transferFrom_request(token,tx_request, memoryController );
-        switch (validationResult){
+        let validationResult = validate_transferFrom_request(token, tx_request, memoryController);
+        switch (validationResult) {
             case (#err(errorType)) {
                 return #Err(errorType);
             };
@@ -96,19 +88,21 @@ module {
         };
 
         // If from or to is Fee-Whitelisted then 0 fee will be used
-        let real_fee_to_use : Balance = Utils.get_real_token_fee(
+        let real_fee_to_use : Balance = Utils.get_real_token_fee_with_specified_defaultFee(
             tx_request.from.owner,
             tx_request.to.owner,
             token,
             tx_request.fee,
         );
-        
-        // Reduce the allowance-amount
-        let reduceAmount:Nat = Nat.max(tx_request.amount + real_fee_to_use, 0);
-        
-        let spender:T.AccountTypes.Account = { owner = caller; subaccount = args.spender_subaccount };
-        memoryController.databaseController.reduce_allowance_amount(tx_request.from, spender, reduceAmount);
 
+        // Reduce the allowance-amount
+        let reduceAmount : Nat = Nat.max(tx_request.amount + real_fee_to_use, 0);
+
+        let spender : T.AccountTypes.Account = {
+            owner = caller;
+            subaccount = args.spender_subaccount;
+        };
+        memoryController.databaseController.reduce_allowance_amount(tx_request.from, spender, reduceAmount);
 
         // process transaction
         switch (tx_request.kind) {
@@ -119,45 +113,40 @@ module {
                 Utils.burn_balance(token, tx_request.encoded.from, tx_request.amount);
             };
             case (#transfer) {
-                Utils.transfer_balance(token, {tx_request with fee = real_fee_to_use});
+                Utils.transfer_balance(token, { tx_request with fee = real_fee_to_use });
 
-                if (real_fee_to_use > 0){
+                if (real_fee_to_use > 0) {
                     // burn fee
                     Utils.burn_balance(token, tx_request.encoded.from, real_fee_to_use);
                 };
-                
+
             };
         };
 
-        let transactionRequest:T.TransactionTypes.TransactionRequest = 
-        {
+        let transactionRequest : T.TransactionTypes.TransactionRequest = {
             tx_request with fee = real_fee_to_use
         };
         // store the transaction
-        let tx_index:Nat = await* ICRC1.store_transaction
-        (
-            token,transactionRequest, 
-            memoryController.model.settings.archive_canisterIds
+        let tx_index : Nat = await* ICRC1.store_transaction(
+            token,
+            transactionRequest,
+            memoryController.model.settings.archive_canisterIds,
         );
 
         return #Ok(tx_index);
     };
 
-
-
-   /// Checks if a Transfer From request is valid
+    /// Checks if a Transfer From request is valid
     public func validate_transferFrom_request(
         token : TokenData,
         txf_req : T.TransactionTypes.TransactionFromRequest,
         memoryController : MemoryController.MemoryController,
     ) : Result.Result<(), T.TransactionTypes.TransferFromError> {
 
-
-        let { allowance; expires_at } 
-        = memoryController.databaseController.get_allowance(txf_req.from, txf_req.spender);    
+        let { allowance; expires_at } = memoryController.databaseController.get_allowance(txf_req.from, txf_req.spender);
         //Utils.get_allowance(token.approvals, txf_req.encoded);
 
-        let real_fee_to_be_used:Balance = Utils.get_real_token_fee(
+        let real_fee_to_be_used : Balance = Utils.get_real_token_fee_with_specified_defaultFee(
             txf_req.from.owner,
             txf_req.spender.owner,
             token,
@@ -180,9 +169,9 @@ module {
             );
         };
 
-        let txReqForValidation:T.TransactionTypes.TransactionRequest = 
-        { txf_req with fee = real_fee_to_be_used};
-
+        let txReqForValidation : T.TransactionTypes.TransactionRequest = {
+            txf_req with fee = real_fee_to_be_used
+        };
 
         switch (TransferHelper.validate_request(token, txReqForValidation, txf_req.fee)) {
             case (#err(errorType)) {
@@ -253,7 +242,7 @@ module {
         );
 
         // Is owner is Fee-whitelisted then 0 fee will be used for the approval
-        let real_fee_to_use : Balance = Utils.get_real_token_fee(
+        let real_fee_to_use : Balance = Utils.get_real_token_fee_with_specified_defaultFee(
             app_req.from.owner,
             app_req.from.owner,
             token,
@@ -266,21 +255,20 @@ module {
         };
 
         // Validates that the approval contains the expected allowance
-        
+
         switch (app_req.expected_allowance) {
             case null {};
             case (?expected) {
 
                 let allowance_record = memoryController.databaseController.get_allowance(app_req.from, app_req.spender);
 
-              
                 if (expected != allowance_record.allowance) {
                     return #err(
                         #AllowanceChanged {
                             current_allowance = allowance_record.allowance;
                         }
                     );
-                };                                                 
+                };
             };
         };
 

@@ -4,13 +4,12 @@ import List "mo:base/List";
 import Float "mo:base/Float";
 import Int "mo:base/Int";
 import ActorSpec "../utils/ActorSpec";
-import ICRC1 "../../../src/ICRC1/Modules/Token/ICRC1Token";
+import ICRC1 "../../../src/ICRC1/Modules/Token/Implementations/ICRC1.Implementation";
 import T "../../../src/ICRC1/Types/Types.All";
 import U "../../../src/ICRC1/Modules/Token/Utils/Utils";
 import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import TokenTypes "../../../src/ICRC1/Types/Types.Token";
-import ExtendedToken "../../../src/ICRC1/Modules/Token/ExtendedToken";
-
+import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
 
 module {
 
@@ -28,7 +27,7 @@ module {
     private type Mint = T.TransactionTypes.Mint;
     private type BurnArgs = T.TransactionTypes.BurnArgs;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
-                
+
     /// Formats a float to a nat balance and applies the correct number of decimal places
     public func balance_from_float(token : TokenData, float : Float) : Balance {
         if (float <= 0) {
@@ -41,15 +40,17 @@ module {
     };
 
     public func test() : async ActorSpec.Group {
- 
+
         let {
-            assertTrue;           
+            assertTrue;
             assertAllTrue;
             describe;
-            it;            
+            it;
         } = ActorSpec;
-        
-        var archive_canisterIds: T.ArchiveTypes.ArchiveCanisterIds = {var canisterIds = List.nil<Principal>()};
+
+        var archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds = {
+            var canisterIds = List.nil<Principal>();
+        };
 
         let { SB } = U;
 
@@ -68,7 +69,6 @@ module {
             subaccount = null;
         };
 
-
         let default_token_args : InitArgs = {
             name = "Under-Collaterised Lending Tokens";
             symbol = "UCLTs";
@@ -86,7 +86,7 @@ module {
         return describe(
             "ICRC1 Token Implementation Tests",
             [
-                
+
                 it(
                     "init()",
                     do {
@@ -127,7 +127,7 @@ module {
                         let token = Initializer.tokenInit(args);
 
                         assertTrue(
-                            ICRC1.icrc1_name(token) == args.name,
+                            ICRC1.icrc1_name(token) == args.name
                         );
                     },
                 ),
@@ -140,7 +140,7 @@ module {
                         let token = Initializer.tokenInit(args);
 
                         assertTrue(
-                            ICRC1.icrc1_symbol(token) == args.symbol,
+                            ICRC1.icrc1_symbol(token) == args.symbol
                         );
                     },
                 ),
@@ -153,7 +153,7 @@ module {
                         let token = Initializer.tokenInit(args);
 
                         assertTrue(
-                            ICRC1.icrc1_decimals(token) == args.decimals,
+                            ICRC1.icrc1_decimals(token) == args.decimals
                         );
                     },
                 ),
@@ -165,7 +165,7 @@ module {
                         let token = Initializer.tokenInit(args);
 
                         assertTrue(
-                            ICRC1.icrc1_fee(token) == args.fee,
+                            ICRC1.icrc1_fee(token) == args.fee
                         );
                     },
                 ),
@@ -177,7 +177,7 @@ module {
                         let token = Initializer.tokenInit(args);
 
                         assertTrue(
-                            ICRC1.icrc1_minting_account(token) == args.minting_account,
+                            ICRC1.icrc1_minting_account(token) == args.minting_account
                         );
                     },
                 ),
@@ -186,8 +186,8 @@ module {
                     do {
                         let args = default_token_args;
 
-                        let token = Initializer.tokenInit({ args 
-                            with initial_balances = [
+                        let token = Initializer.tokenInit({
+                            args with initial_balances = [
                                 (user1, 100),
                                 (user2, 200),
                             ];
@@ -204,15 +204,15 @@ module {
                     do {
                         let args = default_token_args;
 
-                        let token = Initializer.tokenInit({ args 
-                            with initial_balances = [
+                        let token = Initializer.tokenInit({
+                            args with initial_balances = [
                                 (user1, 100),
                                 (user2, 200),
                             ];
                         });
 
                         assertTrue(
-                            ICRC1.icrc1_total_supply(token) == 300,
+                            ICRC1.icrc1_total_supply(token) == 300
                         );
                     },
                 ),
@@ -222,16 +222,16 @@ module {
                     do {
                         let args = default_token_args;
                         let token = Initializer.tokenInit(args);
-                                                
+
                         assertTrue(
                             ICRC1.icrc1_metadata(token) == [
                                 ("icrc1:fee", #Nat(args.fee)),
                                 ("icrc1:name", #Text(args.name)),
                                 ("icrc1:symbol", #Text(args.symbol)),
-                                ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))),                                
-                                ("icrc1:minting_allowed", #Text(debug_show(args.minting_allowed))),
-                                ("icrc1:logo", #Text(args.logo))
-                            ],
+                                ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))),
+                                ("icrc1:minting_allowed", #Text(debug_show (args.minting_allowed))),
+                                ("icrc1:logo", #Text(args.logo)),
+                            ]
                         );
                     },
                 ),
@@ -244,19 +244,20 @@ module {
                         let token = Initializer.tokenInit(args);
 
                         assertTrue(
-                            ICRC1.icrc1_supported_standards(token) == [{
-                                name = "ICRC-1";
-                                url = "https://github.com/dfinity/ICRC-1";
-                            },
-                            {
-                               name = "ICRC-2";
-                               url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
-                            }
-                            ],
+                            ICRC1.icrc1_supported_standards(token) == [
+                                {
+                                    name = "ICRC-1";
+                                    url = "https://github.com/dfinity/ICRC-1";
+                                },
+                                {
+                                    name = "ICRC-2";
+                                    url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
+                                },
+                            ]
                         );
                     },
                 ),
-                                        
+
                 describe(
                     "icrc1_transfer()",
                     [
@@ -277,9 +278,8 @@ module {
                                     token,
                                     mint_args,
                                     args.minting_account.owner,
-                                    archive_canisterIds
+                                    archive_canisterIds,
                                 );
-
 
                                 let transfer_args : TransferArgs = {
                                     from_subaccount = user1.subaccount;
@@ -294,9 +294,9 @@ module {
                                     token,
                                     transfer_args,
                                     user1.owner,
-                                    archive_canisterIds
+                                    archive_canisterIds,
                                 );
-                                
+
                                 assertAllTrue([
                                     res == #Ok(1),
                                     ICRC1.icrc1_balance_of(token, user1) == balance_from_float(token, 145),
@@ -307,7 +307,7 @@ module {
                             },
                         ),
                     ],
-                ),                
+                ),
             ],
         );
     };

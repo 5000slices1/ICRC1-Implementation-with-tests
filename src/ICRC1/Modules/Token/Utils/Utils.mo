@@ -1,23 +1,16 @@
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
-import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
 import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
-import Nat8 "mo:base/Nat8";
 import Nat32 "mo:base/Nat32";
 import Nat64 "mo:base/Nat64";
-import Option "mo:base/Option";
 import Principal "mo:base/Principal";
-import Result "mo:base/Result";
 import Time "mo:base/Time";
-
-import ArrayModule "mo:array/Array";
 import Itertools "mo:itertools/Iter";
 import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
-
 import Account "../Account/Account";
 import CommonTypes "../../../Types/Types.Common";
 import TokenTypes "../../../Types/Types.Token";
@@ -32,7 +25,7 @@ module {
 
     //Token types
     private type InitArgs = TokenTypes.InitArgs;
-    private type MetaDatum = TokenTypes.MetaDatum;    
+    private type MetaDatum = TokenTypes.MetaDatum;
     private type SupportedStandard = TokenTypes.SupportedStandard;
     private type TokenData = TokenTypes.TokenData;
 
@@ -46,10 +39,6 @@ module {
     private type TxKind = TransactionTypes.TxKind;
     private type TransactionRequest = TransactionTypes.TransactionRequest;
     private type Transaction = TransactionTypes.Transaction;
-
-    
-
-
 
     /// this is a local copy of deprecated Hash.hashNat8 (redefined to suppress the warning)
     func hashNat8(key : [Nat32]) : Hash.Hash {
@@ -77,22 +66,27 @@ module {
     };
 
     // Return defaultFee or if principalfrom/principalTo is fee whitelisted then 0 is returned.
-    public func get_token_fee(principalFrom:Principal, principalTo:Principal,
-     token : TokenData):Balance{
+    public func get_real_token_fee(
+        principalFrom : Principal,
+        principalTo : Principal,
+        token : TokenData,
+    ) : Balance {
 
-        let listSize:Nat = List.size<Principal>(token.feeWhitelistedPrincipals);
-        if (listSize ==0){
+        let listSize : Nat = List.size<Principal>(token.feeWhitelistedPrincipals);
+        if (listSize == 0) {
             return token.defaultFee;
         };
 
-        func listFindFunc(x : Principal) : Bool { x == principalFrom or x == principalTo };
+        func listFindFunc(x : Principal) : Bool {
+            x == principalFrom or x == principalTo;
+        };
 
-        let isWhitelisted:Bool = List.some<Principal>(
-                token.feeWhitelistedPrincipals,
-                listFindFunc,
+        let isWhitelisted : Bool = List.some<Principal>(
+            token.feeWhitelistedPrincipals,
+            listFindFunc,
         );
 
-        if (isWhitelisted == true){
+        if (isWhitelisted == true) {
             return 0;
         };
 
@@ -100,20 +94,24 @@ module {
 
     };
 
-    public func get_real_token_fee(principalFrom:Principal, principalTo:Principal,
-    token : TokenData, feeSpecified:?Balance):Balance{
+    public func get_real_token_fee_with_specified_defaultFee(
+        principalFrom : Principal,
+        principalTo : Principal,
+        token : TokenData,
+        feeSpecified : ?Balance,
+    ) : Balance {
 
-        var result:Balance = get_token_fee(principalFrom, principalTo, token);
-        switch(feeSpecified){
-            case (?feeValue){
-                if (result > 0){
-                    result:= Nat.max(feeValue, result);                 
+        var result : Balance = get_real_token_fee(principalFrom, principalTo, token);
+        switch (feeSpecified) {
+            case (?feeValue) {
+                if (result > 0) {
+                    result := Nat.max(feeValue, result);
                 };
                 return result;
-                
+
             };
-            case (_){return token.defaultFee};
-        }
+            case (_) { return token.defaultFee };
+        };
 
     };
 
@@ -122,11 +120,11 @@ module {
     public func create_transfer_req(
         args : TransferArgs,
         owner : Principal,
-        tx_kind: TxKind,
-        token : TokenData
+        tx_kind : TxKind,
+        token : TokenData,
     ) : TransactionRequest {
-        
-        var transferFee = get_real_token_fee(owner, args.to.owner, token, args.fee);
+
+        var transferFee = get_real_token_fee_with_specified_defaultFee(owner, args.to.owner, token, args.fee);
 
         let from = {
             owner;
@@ -156,8 +154,7 @@ module {
                 };
             };
             case (#transfer) {
-                let result:TransactionRequest =
-                {
+                let result : TransactionRequest = {
                     from_subaccount = args.from_subaccount;
                     to = args.to;
                     amount = args.amount;
@@ -183,7 +180,7 @@ module {
     };
 
     /// Formats the tx request into a finalised transaction
-    public func req_to_tx(tx_req : TransactionRequest, index: Nat) : Transaction {
+    public func req_to_tx(tx_req : TransactionRequest, index : Nat) : Transaction {
 
         {
             kind = kind_to_text(tx_req.kind);
@@ -201,7 +198,7 @@ module {
                 case (#transfer) { ?tx_req };
                 case (_) null;
             };
-            
+
             index;
             timestamp = Nat64.fromNat(Int.abs(Time.now()));
         };
@@ -254,9 +251,9 @@ module {
     public func transfer_balance(
         token : TokenData,
         tx_req : TransactionRequest,
-    ) { 
+    ) {
         let { encoded; amount } = tx_req;
-							
+
         update_balance(
             token.accounts,
             encoded.from,

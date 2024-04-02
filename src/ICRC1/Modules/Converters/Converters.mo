@@ -1,4 +1,3 @@
-
 import T "../../Types/Types.All";
 import Model "../../Types/Types.Model";
 import Debug "mo:base/Debug";
@@ -11,15 +10,14 @@ import Account "../Token/Account/Account";
 import Utils "../Token/Utils/Utils";
 import TokenTypes "../../Types/Types.Token";
 
-
 module {
 
-     private type TokenData = TokenTypes.TokenData;
+    private type TokenData = TokenTypes.TokenData;
 
     public func ConvertTokenInitArgs(
-        init_arguments : ?T.TokenTypes.TokenInitArgs, 
-        model:Model.Model,
-        canisterOwner:Principal
+        init_arguments : ?T.TokenTypes.TokenInitArgs,
+        model : Model.Model,
+        canisterOwner : Principal,
     ) : ?T.TokenTypes.InitArgs {
         if (init_arguments == null) {
 
@@ -113,17 +111,17 @@ module {
     public func create_transfer_from_req(
         args : T.TransactionTypes.TransferFromArgs,
         owner : Principal,
-        token:TokenData,
+        token : TokenData,
         tx_kind : T.TransactionTypes.TxKind,
     ) : T.TransactionTypes.TransactionFromRequest {
         let spender = { owner; subaccount = args.spender_subaccount };
-        var transfer_args:T.TransactionTypes.TransferArgs = { args with from_subaccount = null };
+        var transfer_args : T.TransactionTypes.TransferArgs = {
+            args with from_subaccount = null
+        };
 
-        var transfer_from_args:T.TransactionTypes.TransactionRequest 
-            = Utils.create_transfer_req(transfer_args, owner, tx_kind, token);
-        
-        let result:T.TransactionTypes.TransactionFromRequest =
-        {
+        var transfer_from_args : T.TransactionTypes.TransactionRequest = Utils.create_transfer_req(transfer_args, owner, tx_kind, token);
+
+        let result : T.TransactionTypes.TransactionFromRequest = {
             transfer_from_args with encoded = {
                 from = Account.encode(args.from);
                 to = Account.encode(args.to);
@@ -136,6 +134,5 @@ module {
 
         return result;
     };
-
 
 };

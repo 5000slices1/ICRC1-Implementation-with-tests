@@ -22,7 +22,6 @@ module {
     private let SB = StableBufferExtended.SB;
     private type SupportedStandard = TokenTypes.SupportedStandard;
     private type Balance = T.Balance;
-    //private type Account = T.AccountTypes.Account;
     private type Subaccount = T.AccountTypes.Subaccount;
     private type AccountBalances = T.AccountTypes.AccountBalances;
 
@@ -144,9 +143,7 @@ module {
             var feeWhitelistedPrincipals = List.nil<Principal>();
             var tokenAdmins = List.nil<Principal>();
             metadata = init_metadata(args);
-            supported_standards = init_standards();
-            memoryDatabaseForHashList : HashList.MemoryStorage = HashList.get_new_memory_storage(2);
-            memoryDatabaseForHashTable : HashTable.MemoryStorage = HashTable.get_new_memory_storage(2);
+            supported_standards = init_standards();            
             transactions = SB.initPresized(ConstantTypes.MAX_TRANSACTIONS_IN_LEDGER);
             permitted_drift;
             transaction_window;

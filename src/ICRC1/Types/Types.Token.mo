@@ -1,15 +1,10 @@
 import CommonTypes "Types.Common";
 import AccountTypes "Types.Account";
 import TransactionTypes "Types.Transaction";
-//import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
-//import Trie "mo:base/Trie";
 import ArchiveTypes "Types.Archive";
-import HashList "mo:memory-hashlist";
-import HashTable "mo:memory-hashtable";
 
 module {
-
 
     //icrc2 types:
     private type AllowanceArgs = TransactionTypes.AllowanceArgs;
@@ -26,7 +21,6 @@ module {
     private type TransferResult = TransactionTypes.TransferResult;
     private type TransferArgs = TransactionTypes.TransferArgs;
     private type Transaction = TransactionTypes.Transaction;
-    // private type ApprovalItem = TransactionTypes.ApprovalItem;
 
     private type ArchiveData = ArchiveTypes.ArchiveData;
     private type Value = CommonTypes.Value;
@@ -118,8 +112,6 @@ module {
         /// The balances of all accounts
         accounts : AccountBalances;
 
-        //allowances: Trie.Trie2D<EncodedAccount, EncodedAccount, ApprovalItem>;
-
         var feeWhitelistedPrincipals : AccountTypes.PrincipalsWhitelistedFees;
 
         var tokenAdmins : AccountTypes.AdminPrincipals;
@@ -135,10 +127,6 @@ module {
 
         /// The allowed difference between the ledger time and the time of the device the transaction was created on
         permitted_drift : Nat;
-
-        memoryDatabaseForHashList:HashList.MemoryStorage;
-
-        memoryDatabaseForHashTable:HashTable.MemoryStorage;
 
         /// The recent transactions that have been processed by the ledger.
         /// Only the last 2000 transactions are stored before being archived.
@@ -172,11 +160,6 @@ module {
         #Ok : Balance;
         #Err : SetParameterError;
     };
-
-    // public type SetAccountParameterResult = {
-    //     #Ok : Account;
-    //     #Err : SetParameterError;
-    // };
 
     /// Interface for the ICRC token canister
     public type Icrc1Interface = actor {
