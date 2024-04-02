@@ -6,8 +6,6 @@ import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
 import List "mo:base/List";
 import Itertools "mo:itertools/Iter";
-import Random "mo:base/Random";
-import Option "mo:base/Option";
 import Float "mo:base/Float";
 import Int "mo:base/Int";
 import ActorSpec "../utils/ActorSpec";
@@ -15,7 +13,6 @@ import ICRC1 "../../../src/ICRC1/Modules/Token/ICRC1Token";
 import T "../../../src/ICRC1/Types/Types.All";
 import U "../../../src/ICRC1/Modules/Token/Utils/Utils";
 import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
-import TokenTypes "../../../src/ICRC1/Types/Types.Token";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/ExtendedToken";
 
 module {
@@ -85,13 +82,6 @@ module {
             owner = Principal.fromText("prb4z-5pc7u-zdfqi-cgv7o-fdyqf-n6afm-xh6hz-v4bk4-kpg3y-rvgxf-iae");
             subaccount = null;
         };
-
-        let user2 : Account = {
-            owner = Principal.fromText("ygyq4-mf2rf-qmcou-h24oc-qwqvv-gt6lp-ifvxd-zaw3i-celt7-blnoc-5ae");
-            subaccount = null;
-        };
-
-        let subAccount1 : ?Blob = Option.make(await Random.blob());
 
         func txs_range(start : Nat, end : Nat, fee : Nat) : [Transaction] {
             Array.tabulate(
@@ -245,40 +235,8 @@ module {
         };
 
         return describe(
-            "ICRC1 Token Implementation Tests",
+            "Extended Token Implementation Tests",
             [
-
-                it(
-                    "init()",
-                    do {
-                        let args = default_token_args;
-
-                        let token = Initializer.tokenInit(args);
-
-                        let icrc1_standard : TokenTypes.SupportedStandard = {
-                            name = "ICRC-1";
-                            url = "https://github.com/dfinity/ICRC-1";
-                        };
-
-                        let icrc2_standard : TokenTypes.SupportedStandard = {
-                            name = "ICRC-2";
-                            url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
-                        };
-
-                        // returns without trapping
-                        assertAllTrue([
-                            token.name == args.name,
-                            token.symbol == args.symbol,
-                            token.decimals == args.decimals,
-                            token.defaultFee == args.fee,
-                            token.max_supply == args.max_supply,
-
-                            token.minting_account == args.minting_account,
-                            SB.toArray(token.supported_standards) == [icrc1_standard, icrc2_standard],
-                            SB.size(token.transactions) == 0,
-                        ]);
-                    },
-                ),
 
                 it(
                     "mint() with minting allowed",
@@ -451,56 +409,6 @@ module {
                         ),
                     ],
                 ),
-                describe(
-                    "transfer()",
-                    [
-                        it(
-                            "Transfer from funded account",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let mint_args = {
-                                    to = user1;
-                                    amount = 200 * (10 ** Nat8.toNat(token.decimals));
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                ignore await* ExtendedToken.mint(
-                                    token,
-                                    mint_args,
-                                    args.minting_account.owner,
-                                    archive_canisterIds,
-                                );
-
-                                let transfer_args : TransferArgs = {
-                                    from_subaccount = user1.subaccount;
-                                    to = user2;
-                                    amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                let res = await* ICRC1.icrc1_transfer(
-                                    token,
-                                    transfer_args,
-                                    user1.owner,
-                                    archive_canisterIds,
-                                );
-
-                                assertAllTrue([
-                                    res == #Ok(1),
-                                    ICRC1.icrc1_balance_of(token, user1) == balance_from_float(token, 145),
-                                    token.burned_tokens == balance_from_float(token, 5),
-                                    ICRC1.icrc1_balance_of(token, user2) == balance_from_float(token, 50),
-                                    ICRC1.icrc1_total_supply(token) == balance_from_float(token, 195),
-                                ]);
-                            },
-                        ),
-                    ],
-                ),
 
                 describe(
                     "Internal Archive Testing",
@@ -660,239 +568,6 @@ module {
                                         },
                                     ),
                                 ];
-                            },
-                        ),
-                    ],
-                ),
-
-                describe(
-                    "fee white listing",
-                    [
-                        it(
-                            "Transfer with whitelist is set to transfer source principal and transfer from subaccount",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let user1WithSubaccount : Account = {
-                                    owner = user1.owner;
-                                    subaccount = subAccount1;
-                                };
-
-                                let mint_args = {
-                                    to = user1WithSubaccount;
-                                    amount = 200 * (10 ** Nat8.toNat(token.decimals));
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                ignore await* ExtendedToken.mint(
-                                    token,
-                                    mint_args,
-                                    args.minting_account.owner,
-                                    archive_canisterIds,
-                                );
-
-                                ignore ExtendedToken.admin_add_admin_user(canister.owner, user1.owner, token);
-                                ignore ExtendedToken.feewhitelisting_add_principal(user1.owner, user1.owner, token);
-                                let transfer_args : TransferArgs = {
-                                    from_subaccount = user1WithSubaccount.subaccount;
-                                    to = user2;
-                                    amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                let res = await* ICRC1.icrc1_transfer(
-                                    token,
-                                    transfer_args,
-                                    user1.owner,
-                                    archive_canisterIds,
-                                );
-
-                                assertAllTrue([
-                                    res == #Ok(1),
-                                    ICRC1.icrc1_balance_of(token, user1WithSubaccount) == balance_from_float(token, 150),
-                                    token.burned_tokens == balance_from_float(token, 0),
-                                    ICRC1.icrc1_balance_of(token, user2) == balance_from_float(token, 50),
-                                    ICRC1.icrc1_total_supply(token) == balance_from_float(token, 200),
-                                ]);
-                            },
-                        ),
-                        it(
-                            "Transfer with whitelist is set to transfer source principal and transfer not from subaccount",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let mint_args = {
-                                    to = user1;
-                                    amount = 200 * (10 ** Nat8.toNat(token.decimals));
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                ignore await* ExtendedToken.mint(
-                                    token,
-                                    mint_args,
-                                    args.minting_account.owner,
-                                    archive_canisterIds,
-                                );
-
-                                ignore ExtendedToken.admin_add_admin_user(canister.owner, user1.owner, token);
-                                ignore ExtendedToken.feewhitelisting_add_principal(user1.owner, user1.owner, token);
-                                let transfer_args : TransferArgs = {
-                                    from_subaccount = null;
-                                    to = user2;
-                                    amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                let res = await* ICRC1.icrc1_transfer(
-                                    token,
-                                    transfer_args,
-                                    user1.owner,
-                                    archive_canisterIds,
-                                );
-
-                                assertAllTrue([
-                                    res == #Ok(1),
-                                    ICRC1.icrc1_balance_of(token, user1) == balance_from_float(token, 150),
-                                    token.burned_tokens == balance_from_float(token, 0),
-                                    ICRC1.icrc1_balance_of(token, user2) == balance_from_float(token, 50),
-                                    ICRC1.icrc1_total_supply(token) == balance_from_float(token, 200),
-                                ]);
-                            },
-                        ),
-                        it(
-                            "Transfer with whitelist is set to transfer target principal and transfer from subaccount",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let user1WithSubaccount : Account = {
-                                    owner = user1.owner;
-                                    subaccount = subAccount1;
-                                };
-
-                                let mint_args = {
-                                    to = user1WithSubaccount;
-                                    amount = 200 * (10 ** Nat8.toNat(token.decimals));
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                ignore await* ExtendedToken.mint(
-                                    token,
-                                    mint_args,
-                                    args.minting_account.owner,
-                                    archive_canisterIds,
-                                );
-
-                                ignore ExtendedToken.feewhitelisting_add_principal(canister.owner, user2.owner, token);
-                                let transfer_args : TransferArgs = {
-                                    from_subaccount = user1WithSubaccount.subaccount;
-                                    to = user2;
-                                    amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                let res = await* ICRC1.icrc1_transfer(
-                                    token,
-                                    transfer_args,
-                                    user1.owner,
-                                    archive_canisterIds,
-                                );
-
-                                assertAllTrue([
-                                    res == #Ok(1),
-                                    ICRC1.icrc1_balance_of(token, user1WithSubaccount) == balance_from_float(token, 150),
-                                    token.burned_tokens == balance_from_float(token, 0),
-                                    ICRC1.icrc1_balance_of(token, user2) == balance_from_float(token, 50),
-                                    ICRC1.icrc1_total_supply(token) == balance_from_float(token, 200),
-                                ]);
-                            },
-                        ),
-                        it(
-                            "Transfer with whitelist is set to transfer target principal and transfer not from subaccount",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let mint_args = {
-                                    to = user1;
-                                    amount = 200 * (10 ** Nat8.toNat(token.decimals));
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                ignore await* ExtendedToken.mint(
-                                    token,
-                                    mint_args,
-                                    args.minting_account.owner,
-                                    archive_canisterIds,
-                                );
-
-                                ignore ExtendedToken.feewhitelisting_add_principal(canister.owner, user2.owner, token);
-                                let transfer_args : TransferArgs = {
-                                    from_subaccount = null;
-                                    to = user2;
-                                    amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
-                                    memo = null;
-                                    created_at_time = null;
-                                };
-
-                                let res = await* ICRC1.icrc1_transfer(
-                                    token,
-                                    transfer_args,
-                                    user1.owner,
-                                    archive_canisterIds,
-                                );
-
-                                assertAllTrue([
-                                    res == #Ok(1),
-                                    ICRC1.icrc1_balance_of(token, user1) == balance_from_float(token, 150),
-                                    token.burned_tokens == balance_from_float(token, 0),
-                                    ICRC1.icrc1_balance_of(token, user2) == balance_from_float(token, 50),
-                                    ICRC1.icrc1_total_supply(token) == balance_from_float(token, 200),
-                                ]);
-                            },
-                        ),
-                    ],
-                ),
-                describe(
-                    "admin functions",
-                    [
-                        it(
-                            "admin add user from non-admin user should fail",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let result = ExtendedToken.admin_add_admin_user(user1.owner, user1.owner, token);
-
-                                assertAllTrue([
-                                    result == #err("Only owner can add admin user"),
-                                ]);
-                            },
-                        ),
-                        it(
-                            "admin add user from admin user should succeed",
-                            do {
-                                let args = default_token_args;
-                                let token = Initializer.tokenInit(args);
-
-                                let result = ExtendedToken.admin_add_admin_user(canister.owner, user1.owner, token);
-
-                                assertAllTrue([
-                                    result == #ok("Principal was added as admin user."),
-                                ]);
                             },
                         ),
                     ],

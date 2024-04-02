@@ -331,7 +331,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     func get_tx({ offset; size } : MemoryBlock) : Transaction {
         let blob = ExperimentalStableMemory.loadBlob(offset, size);
 
-        let tx = from_blob(blob);
+        from_blob(blob);
     };
 
     func store_bucket(bucket : [MemoryBlock]) {

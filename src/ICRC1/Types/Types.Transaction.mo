@@ -1,12 +1,7 @@
-import Deque "mo:base/Deque";
 import List "mo:base/List";
-import Time "mo:base/Time";
-import Result "mo:base/Result";
 import Principal "mo:base/Principal";
-
 import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
-
 import CommonTypes "Types.Common";
 import AccountTypes "Types.Account";
 
@@ -27,7 +22,6 @@ module {
     public type TxIndex = Nat;
     public type TxCandidBlob = Blob;
     public type Tokens = Nat;
-
 
     public type TimeError = {
         #TooOld;
@@ -169,14 +163,11 @@ module {
 
     //Icrc2 types:
 
-
-
-
     // --------------------------------------------------------------------
     /// ICRC2 allowance
-        
-    //     Returns the token allowance that the spender account can transfer from the specified account, 
-    //     and the expiration time for that allowance, if any. If there is no active approval, 
+
+    //     Returns the token allowance that the spender account can transfer from the specified account,
+    //     and the expiration time for that allowance, if any. If there is no active approval,
     //     the ledger MUST return { allowance = 0; expires_at = null }.
     public type Allowance = { allowance : Nat; expires_at : ?Nat64 };
     public type AllowanceArgs = { account : Account; spender : Account };
@@ -186,32 +177,32 @@ module {
     // --------------------------------------------------------------------
     /// ICRC2 transfer-from
 
-    // (0)  
+    // (0)
     //      Description:
-    //      Transfers a token amount from the from account to the to account using the allowance 
-    //      of the spender's account (SpenderAccount = { owner = caller; subaccount = spender_subaccount }). 
+    //      Transfers a token amount from the from account to the to account using the allowance
+    //      of the spender's account (SpenderAccount = { owner = caller; subaccount = spender_subaccount }).
     //      The ledger draws the fees from the from account.
     //
-    // (1) 
+    // (1)
     //     Preconditions:
-    //     - The allowance for the SpenderAccount from the from account is large enough to cover the transfer amount 
-    //       and the fees (icrc2_allowance({ account = from; spender = SpenderAccount }).allowance >= amount + fee). 
+    //     - The allowance for the SpenderAccount from the from account is large enough to cover the transfer amount
+    //       and the fees (icrc2_allowance({ account = from; spender = SpenderAccount }).allowance >= amount + fee).
     //       Otherwise, the ledger MUST return an InsufficientAllowance error.
-    //     - The from account holds enough funds to cover the transfer amount and the fees. 
+    //     - The from account holds enough funds to cover the transfer amount and the fees.
     //       (icrc1_balance_of(from) >= amount + fee). Otherwise, the ledger MUST return an InsufficientFunds error.
     //
     // (2)
     //     Postconditions:
-    //     - If the from account is not equal to the SpenderAccount, the (from, SpenderAccount) 
+    //     - If the from account is not equal to the SpenderAccount, the (from, SpenderAccount)
     //       allowance decreases by the transfer amount and the fees.
     //     - The ledger debited the specified amount of tokens and fees from the from account.
     //     - The ledger credited the specified amount to the to account.
 
-    public type TransferFromArgs = {        
+    public type TransferFromArgs = {
         spender_subaccount : ?Subaccount;
 
-        // Transfers a token amount from the from account to the to account using the allowance of the 
-        // spender's account (SpenderAccount = { owner = caller; subaccount = spender_subaccount }). 
+        // Transfers a token amount from the from account to the to account using the allowance of the
+        // spender's account (SpenderAccount = { owner = caller; subaccount = spender_subaccount }).
         // The ledger draws the fees from the from account.
         from : Account;
         to : Account;
@@ -238,7 +229,6 @@ module {
         };
     };
 
-
     public type TransferFromError = {
         #GenericError : { message : Text; error_code : Nat };
         #TemporarilyUnavailable;
@@ -251,7 +241,6 @@ module {
         #InsufficientFunds : { balance : Nat };
     };
 
-
     public type TransferFromResponse = {
         #Ok : Nat;
         #Err : TransferFromError;
@@ -260,24 +249,24 @@ module {
     // --------------------------------------------------------------------
 
     //  -------------------------------------------------------------------
-    /// ICRC2 Approval 
-    
+    /// ICRC2 Approval
+
     /// Arguments for an approve operation
 
     // Specification source: https://github.com/chichangb/ICRC-1/blob/main/standards/ICRC-2/README.md
     //
     // (1)
-    //    The number of transfers the spender can initiate from the caller's account 
-    //    is unlimited as long as the total amounts and fees of these 
-    //    transfers do not exceed the allowance. 
+    //    The number of transfers the spender can initiate from the caller's account
+    //    is unlimited as long as the total amounts and fees of these
+    //    transfers do not exceed the allowance.
     //    -> This is the default behaviour from the ICRC2 specifiction. But in this implementation
     //       we can overrule this by the type 'UserApprovalSettings', to allow transfer_from only one time if wanted.
     //       (not implemented, yet)
     //
-    // (2) 
+    // (2)
     //    The call resets the allowance and the expiration date for the spender account to the given values.
     //
-    // (3) 
+    // (3)
     //    Preconditions:
     //    - The caller has enough fees on the { owner = caller; subaccount = from_subaccount } account to pay the approval fee.
     //    - If the expires_at field is set, it's greater than the current ledger time.
@@ -293,16 +282,16 @@ module {
         spender : Account;
 
         // (1)
-        //    The caller does not need to have the full token amount on the specified account 
+        //    The caller does not need to have the full token amount on the specified account
         //    for the approval to succeed, just enough tokens to pay the approval fee
         // (2)
-        //    The ledger MAY cap the allowance if it is too large (for example, larger than the total token supply). 
-        //    For example, if there are only 100 tokens, and the ledger receives an approval for 120 tokens, 
+        //    The ledger MAY cap the allowance if it is too large (for example, larger than the total token supply).
+        //    For example, if there are only 100 tokens, and the ledger receives an approval for 120 tokens,
         //    the ledger may cap the allowance to 100.
         amount : Balance;
-        
-        // If the expected_allowance field is set, the ledger MUST ensure that the current allowance 
-        // for the spender from the caller's account is equal to the given value and return 
+
+        // If the expected_allowance field is set, the ledger MUST ensure that the current allowance
+        // for the spender from the caller's account is equal to the given value and return
         // the AllowanceChanged error otherwise.
         expected_allowance : ?Nat;
         expires_at : ?Nat64;
@@ -332,7 +321,6 @@ module {
         #Err : ApproveError;
     };
 
-
     public type WriteApproveRequest = {
         amount : Balance;
         expires_at : ?Nat64;
@@ -341,7 +329,6 @@ module {
             spender : EncodedAccount;
         };
     };
-
 
     public type DbAllowance = {
         allowance : Balance;
@@ -364,37 +351,35 @@ module {
 
         // The approval request expired before the ledger had a chance to apply it.
         #Expired : { ledger_time : Nat64 };
-        
-        #TooOld;        
+
+        #TooOld;
         #CreatedInFuture : { ledger_time : Nat64 };
         #Duplicate : { duplicate_of : Nat };
         #TemporarilyUnavailable;
         #GenericError : { message : Text; error_code : Nat };
-                                                                
-    };
 
-    
+    };
 
     //The user can define global settings for 'only_one_time_useable' and 'expires_at'.
     //For security users can only set these settings if they hold at least 1.0 token in wallet.
     public type UserApprovalSettings = {
 
         //If this is set to true then new 'ApprovalItem' will have set the 'one_time_useable' to true
-        global_only_one_time_useable:?Bool;
-        
+        global_only_one_time_useable : ?Bool;
+
         //If this is set then new 'ApprovalItem' will have set the same expirationTime.
-        //Regardless what was specified in 'ApproveArgs' 
-        global_expiration_time:?Nat64;
+        //Regardless what was specified in 'ApproveArgs'
+        global_expiration_time : ?Nat64;
 
-        //if 'global_only_one_time_useable' is set to true, but for some principals we 
+        //if 'global_only_one_time_useable' is set to true, but for some principals we
         //do not want this, we can add these principals into this list.
         //-> For security reasons (memory issue) this list can only contain max 100 items
-        global_only_one_time_useable_disabled:List.List<Principal>;
+        global_only_one_time_useable_disabled : List.List<Principal>;
 
-        //if 'global_expiration_time' is set, but for some principals we 
+        //if 'global_expiration_time' is set, but for some principals we
         //do not want this, we can add these principals into this list.
         //-> For security reasons (memory issue) this list can only contain max 100 items
-        global_expiration_time_disabled:List.List<Principal>;
+        global_expiration_time_disabled : List.List<Principal>;
     };
 
     //  -------------------------------------------------------------------

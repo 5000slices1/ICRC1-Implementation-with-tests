@@ -1,121 +1,31 @@
 import List "mo:base/List";
-import { setTimer; recurringTimer; cancelTimer } = "mo:base/Timer";
+import { recurringTimer; cancelTimer } = "mo:base/Timer";
 import Nat "mo:base/Nat";
 import Cycles "mo:base/ExperimentalCycles";
 import Text "mo:base/Text";
 import ICRC1 "../Modules/Token/ICRC1Token";
 import ICRC2 "../Modules/Token/ICRC2Token";
+import SlicesToken "../Modules/Token/SlicesToken";
 import ExtendedToken "../Modules/Token/ExtendedToken";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
-//import Error "mo:base/Error";
-//import Itertools "mo:itertools/Iter";
-//import Trie "mo:base/Trie";
-//import Blob "mo:base/Blob";
 import Result "mo:base/Result";
 import Bool "mo:base/Bool";
 import T "../Types/Types.All";
 import Constants "../Types/Types.Constants";
 import Account "../Modules/Token/Account/Account";
-//import Region "mo:base/Region";
-//import Option "mo:base/Option";
-import Utils "../Modules/Token/Utils/Utils";
 import Initializer "../Modules/Token/Initializer/Initializer";
 import Model "../Types/Types.Model";
 import Converters = "../Modules/Converters/Converters";
 import MemoryController "../Modules/Token/MemoryController/MemoryController";
-import ArchiveHelper "../Modules/Token/Archive/ArchiveHelper";
-
 
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
 
-    //The value of this variable should only be changed by the function 'ConvertArgs'
-    //private stable var wasInitializedWithArguments : Bool = false;
-    // private stable var archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds = {
-    //     var canisterIds = List.nil<Principal>();
-    // };
-    // private stable var tokenCanisterId : Principal = Principal.fromText("aaaaa-aa");
-
-    // private stable var autoTopupData : T.CanisterTypes.CanisterAutoTopUpData = {
-    //     var autoCyclesTopUpEnabled = false;
-    //     var autoCyclesTopUpMinutes : Nat = 60 * 12; //12 hours
-    //     var autoCyclesTopUpTimerId : Nat = 0;
-    //     var autoCyclesTopUpOccuredNumberOfTimes : Nat = 0;
-    // };
-
-
-    /*
-    private func ConvertArgs(init_arguments : ?T.TokenTypes.TokenInitArgs) : ?T.TokenTypes.InitArgs {
-        if (init_arguments == null) {
-
-            if (wasInitializedWithArguments == false) {
-                let infoText : Text = "ERROR! Empty argument in dfx deploy is only allowed for canister updates";
-                Debug.print(infoText);
-                Debug.trap(infoText);
-            };
-            return null;
-        };
-
-        if (wasInitializedWithArguments == true) {
-            let infoText : Text = "ERROR! Re-initializing is not allowed";
-            Debug.print(infoText);
-            Debug.trap(infoText);
-        } else {
-
-            var argsToUse : T.TokenTypes.TokenInitArgs = switch (init_arguments) {
-                case null return null; // should never happen
-                case (?tokenArgs) tokenArgs;
-            };
-
-            let icrc1_args : T.TokenTypes.InitArgs = {
-                argsToUse with minting_account = Option.get(argsToUse.minting_account, { owner = _owner; subaccount = null });
-            };
-
-            if (icrc1_args.initial_balances.size() < 1) {
-                if (icrc1_args.minting_allowed == false) {
-                    let infoText : Text = "ERROR! When minting feature is disabled at least one initial balances account is needed.";
-                    Debug.print(infoText);
-                    Debug.trap(infoText);
-                };
-            } else {
-
-                for ((i, (account, balance)) in Itertools.enumerate(icrc1_args.initial_balances.vals())) {
-
-                    if (account.owner == icrc1_args.minting_account.owner) {
-                        let infoText : Text = "ERROR! Minting account was specified in initial balances account. This is not allowed.";
-                        Debug.print(infoText);
-                        Debug.trap(infoText);
-
-                    };
-                };
-            };
-
-            //Now check the balance of cycles available:
-            let amount = Cycles.balance();
-            if (amount < Constants.TOKEN_INITIAL_CYCLES_REQUIRED) {
-                let missingBalance : Nat = Constants.TOKEN_INITIAL_CYCLES_REQUIRED - amount;
-                let infoText : Text = "\r\nERROR! At least " #debug_show (Constants.TOKEN_INITIAL_DEPLOYMENT_CYCLES_REQUIRED)
-                # " cycles are needed for deployment. \r\n "
-                # "- Available cycles: " #debug_show (amount) # "\r\n"
-                # "- Missing cycles: " #debug_show (missingBalance) # "\r\n"
-                # " -> You can use the '--with-cycles' command in dfx deploy. \r\n"
-                # "    For example: \r\n"
-                # "    'dfx deploy icrc1 --with-cycles 3000000000000'";
-                Debug.print(infoText);
-                Debug.trap(infoText);
-            };
-
-            wasInitializedWithArguments := true;
-            return Option.make(icrc1_args);
-        };
-    };
-    */
-
-    private stable var model:Model.Model = Initializer.init_model();
+    private stable var model : Model.Model = Initializer.init_model();
 
     //Convert argument, because 'init_args' can now be null, in case of upgrade scenarios. ('dfx deploy')
-    let init_arguments : ?T.TokenTypes.InitArgs = Converters.ConvertTokenInitArgs(init_args, model,_owner);
+    let init_arguments : ?T.TokenTypes.InitArgs = Converters.ConvertTokenInitArgs(init_args, model, _owner);
 
     private stable let token : T.TokenTypes.TokenData = switch (init_arguments) {
         case null {
@@ -124,8 +34,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         case (?initArgsNotNull) Initializer.tokenInit(initArgsNotNull);
     };
 
-    private let memoryController:MemoryController.MemoryController = MemoryController.MemoryController(model);
-        
+    private let memoryController : MemoryController.MemoryController = MemoryController.MemoryController(model);
 
     // ------------------------------------------------------------------------------------------
     // ICRC1
@@ -144,12 +53,6 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     public shared query func icrc1_fee() : async T.Balance {
         ICRC1.icrc1_fee(token);
-    };
-
-    //Fee is zero for Fee-whitelisted principals
-    public shared query func fee(from : Principal, to : Principal) : async T.Balance {
-
-        Utils.get_token_fee(from, to, token);
     };
 
     public shared query func icrc1_metadata() : async [T.TokenTypes.MetaDatum] {
@@ -182,29 +85,106 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     // ------------------------------------------------------------------------------------------
 
-
     // ------------------------------------------------------------------------------------------
     // ICRC2
-   
+
     public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResult {
-        ICRC2.icrc2_approve(caller, approveArgs, token, memoryController);        
+        ICRC2.icrc2_approve(caller, approveArgs, token, memoryController);
     };
 
-    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {        
+    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {
         ICRC2.icrc2_allowance(allowanceArgs, memoryController);
     };
 
     public shared ({ caller }) func icrc2_transfer_from(transferFromArgs : T.TransactionTypes.TransferFromArgs) : async T.TransactionTypes.TransferFromResponse {
-        await* ICRC2.icrc2_transfer_from(caller, transferFromArgs, token, memoryController);        
+        await* ICRC2.icrc2_transfer_from(caller, transferFromArgs, token, memoryController);
     };
 
     // ------------------------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------------------------
+    // SLICES token functions
+
+    //Fee is zero for Fee-whitelisted principals, else defaultFee is returned
+    public shared query func real_fee(from : Principal, to : Principal) : async T.Balance {
+
+        SlicesToken.get_real_token_fee(from, to, token);
+    };
+
+    //Only the owner can call this method
+    public shared ({ caller }) func admin_add_admin_user(principal : Principal) : async Result.Result<Text, Text> {
+        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
+            return #err("Not enough free Cycles available");
+        };
+
+        return SlicesToken.admin_add_admin_user(caller, principal, token);
+    };
+
+    //Only the owner can call this method
+    public shared ({ caller }) func admin_remove_admin_user(principal : Principal) : async Result.Result<Text, Text> {
+        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
+            return #err("Not enough free Cycles available");
+        };
+
+        return SlicesToken.admin_remove_admin_user(caller, principal, token);
+    };
+
+    public shared query func list_admin_users() : async [Principal] {
+        return SlicesToken.list_admin_users(token);
+    };
+
+    public shared ({ caller }) func feewhitelisting_add_principal(principal : Principal) : async Result.Result<Text, Text> {
+        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
+            return #err("Not enough free Cycles available");
+        };
+        return SlicesToken.feewhitelisting_add_principal(caller, principal, token);
+    };
+
+    public shared ({ caller }) func feewhitelisting_remove_principal(principal : Principal) : async Result.Result<Text, Text> {
+        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
+            return #err("Not enough free Cycles available");
+        };
+        return SlicesToken.feewhitelisting_remove_principal(caller, principal, token);
+    };
+
+    public shared query func feewhitelisting_get_list() : async [Principal] {
+        return SlicesToken.feewhitelisting_get_list(token);
+    };
+
+    /// Retrieve information for the main token and all dynamically added archive canisters:
+    /// - The balance for each canister is shown
+    /// - The canister-id for each canister is shown when this function is called by the minting-owner or admin
+    public shared ({ caller }) func all_canister_stats() : async [T.CanisterTypes.CanisterStatsResponse] {
+        if (model.settings.tokenCanisterId == Principal.fromText("aaaaa-aa")) {
+            model.settings.tokenCanisterId := Principal.fromActor(this);
+        };
+        let balance = Cycles.balance();
+        var hidePrincipals : Bool = true;
+        if (Account.user_is_owner_or_admin(caller, token) == true) {
+            hidePrincipals := false;
+        };
+
+        await* SlicesToken.all_canister_stats(hidePrincipals, model.settings.tokenCanisterId, balance, model.settings.archive_canisterIds);
+    };
+
+    /// Show the token holders
+    public shared query func get_holders_count() : async Nat {
+        SlicesToken.get_holders_count(token);
+    };
+
+    /// Get list of the holders
+    /// The returned list can contain maximum 5000 entries. Therefore the additional 'index' and 'count' parameter in case
+    /// there are more than 5000 entries available.
+    public shared query func get_holders(index : ?Nat, count : ?Nat) : async [T.AccountTypes.AccountBalanceInfo] {
+        SlicesToken.get_holders(token, index, count);
+    };
+
+    // -------------------------------------------------------------------------------------------
 
     // ------------------------------------------------------------------------------------------
-    // Extended token functions
+    // Additional token functions
 
-public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.TransactionTypes.TransferResult {
+    public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.TransactionTypes.TransferResult {
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
@@ -286,85 +266,12 @@ public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.T
         await* ExtendedToken.get_transaction(token, i);
     };
 
-    //Only the owner can call this method
-    public shared ({ caller }) func admin_add_admin_user(principal : Principal) : async Result.Result<Text, Text> {
-        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
-            return #err("Not enough free Cycles available");
-        };
-
-        return ExtendedToken.admin_add_admin_user(caller, principal, token);
-    };
-
-    //Only the owner can call this method
-    public shared ({ caller }) func admin_remove_admin_user(principal : Principal) : async Result.Result<Text, Text> {
-        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
-            return #err("Not enough free Cycles available");
-        };
-
-        return ExtendedToken.admin_remove_admin_user(caller, principal, token);
-    };
-
-    public shared query func list_admin_users() : async [Principal] {
-        return ExtendedToken.list_admin_users(token);
-    };
-
-    public shared ({ caller }) func feewhitelisting_add_principal(principal : Principal) : async Result.Result<Text, Text> {
-        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
-            return #err("Not enough free Cycles available");
-        };
-        return ExtendedToken.feewhitelisting_add_principal(caller, principal, token);
-    };
-
-    public shared ({ caller }) func feewhitelisting_remove_principal(principal : Principal) : async Result.Result<Text, Text> {
-        if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
-            return #err("Not enough free Cycles available");
-        };
-        return ExtendedToken.feewhitelisting_remove_principal(caller, principal, token);
-    };
-
-    public shared query func feewhitelisting_get_list() : async [Principal] {
-        return ExtendedToken.feewhitelisting_get_list(token);
-    };
-
-
-
-    /// Retrieve information for the main token and all dynamically added archive canisters:
-    /// - The balance for each canister is shown
-    /// - The canister-id for each canister is shown when this function is called by the minting-owner or admin
-    public shared ({ caller }) func all_canister_stats() : async [T.CanisterTypes.CanisterStatsResponse] {
-        if (model.settings.tokenCanisterId == Principal.fromText("aaaaa-aa")) {
-            model.settings.tokenCanisterId := Principal.fromActor(this);
-        };
-        let balance = Cycles.balance();
-        var hidePrincipals : Bool = true;
-        if (Account.user_is_owner_or_admin(caller, token) == true){
-            hidePrincipals:=false;
-        };
-
-        await* ExtendedToken.all_canister_stats(hidePrincipals, model.settings.tokenCanisterId, balance, model.settings.archive_canisterIds);
-    };
-
-    /// Show the token holders
-    public shared query func get_holders_count() : async Nat {
-        token.accounts._size;
-    };
-
-    /// Get list of the holders
-    /// The returned list can contain maximum 5000 entries. Therefore the additional 'index' and 'count' parameter in case
-    /// there are more than 5000 entries available.
-    public shared query func get_holders(index : ?Nat, count : ?Nat) : async [T.AccountTypes.AccountBalanceInfo] {
-        ExtendedToken.get_holders(token, index, count);
-    };
-
-
-
-   ///This function enables the timer to auto fill the dynamically created archive canisters
+    /// This function enables the timer to auto fill the dynamically created archive canisters
     public shared ({ caller }) func auto_topup_cycles_enable(minutes : ?Nat) : async Result.Result<Text, Text> {
 
-        if (Account.user_is_owner_or_admin(caller, token) == false){
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
             return #err("Unauthorized: Only minting account or admin can call this function..");
         };
-       
 
         let minutesToUse : Nat = switch (minutes) {
             case (?minutes) minutes;
@@ -388,7 +295,7 @@ public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.T
     /// This functions disables the auto fill up timer
     public shared ({ caller }) func auto_topup_cycles_disable() : async Result.Result<Text, Text> {
 
-        if (Account.user_is_owner_or_admin(caller, token) == false){
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
             return #err("Unauthorized: Only minting account or admin can call this function..");
         };
 
@@ -410,8 +317,7 @@ public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.T
         response;
     };
 
-
-       // Deposit cycles into this canister.
+    // Deposit cycles into this canister.
     public shared func deposit_cycles<system>() : async () {
         let amount = Cycles.available();
         let accepted = Cycles.accept<system>(amount);
@@ -422,10 +328,7 @@ public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.T
         Cycles.balance();
     };
 
-
-
     // ------------------------------------------------------------------------------------------
-
 
     // ------------------------------------------------------------------------------------------
     // Helper functions
@@ -481,13 +384,10 @@ public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.T
 
     // ------------------------------------------------------------------------------------------
 
-
     if (model.settings.autoTopupData.autoCyclesTopUpEnabled == true) {
         ignore do ? {
             auto_topup_cycles_enable_internal<system>();
         };
     };
-
-
 
 };

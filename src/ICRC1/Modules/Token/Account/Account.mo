@@ -1,27 +1,19 @@
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Char "mo:base/Char";
-import Debug "mo:base/Debug";
-import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Nat32 "mo:base/Nat32";
-import Nat64 "mo:base/Nat64";
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
-import Time "mo:base/Time";
 import List "mo:base/List";
-
 import ArrayModule "mo:array/Array";
 import Itertools "mo:itertools/Iter";
-import StableBuffer "mo:StableBuffer/StableBuffer";
-import STMap "mo:StableTrieMap";
 import T "../../../Types/Types.All";
 import TokenTypes "../../../Types/Types.Token";
-
 
 /// Token- or user account related functions are defined here
 module {
@@ -88,21 +80,23 @@ module {
     // prettier-ignore
     private let base32Alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "2", "3", "4", "5", "6", "7"];
 
-    public func user_is_owner_or_admin(principal:Principal, token:TokenData):Bool{
+    public func user_is_owner_or_admin(principal : Principal, token : TokenData) : Bool {
 
-        if (principal == token.minting_account.owner){
+        if (principal == token.minting_account.owner) {
             return true;
         };
 
-        if (List.size<Principal>(token.tokenAdmins) > 0 and 
-            List.some<Principal>(token.tokenAdmins, func(n) { n == principal })) {
+        if (
+            List.size<Principal>(token.tokenAdmins) > 0 and
+            List.some<Principal>(token.tokenAdmins, func(n) { n == principal })
+        ) {
             return true;
         };
 
         return false;
     };
 
-    public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin:Principal, token : TokenData) :  Result.Result<Text, Text> {
+    public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
 
         if (caller != token.minting_account.owner) {
             return #err("Only owner can add admin user");
@@ -110,38 +104,37 @@ module {
 
         let userIsAlreadyAdminOrOwner = user_is_owner_or_admin(principalToAddAsAdmin, token);
         if (userIsAlreadyAdminOrOwner == false) {
-            token.tokenAdmins:= List.push<Principal>(principalToAddAsAdmin, token.tokenAdmins);
+            token.tokenAdmins := List.push<Principal>(principalToAddAsAdmin, token.tokenAdmins);
             return #ok("Principal was added as admin user.");
         };
 
         return #ok("Is already admin user or owner.");
     };
 
-    public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin:Principal, token:TokenData) : Result.Result<Text, Text> {
+    public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
 
         if (caller != token.minting_account.owner) {
             return #err("Only owner can remove admin user");
         };
-       
+
         let userIsAlreadyAdminOrOwner = user_is_owner_or_admin(principalToRemoveAsAdmin, token);
         if (userIsAlreadyAdminOrOwner == true) {
-            token.tokenAdmins:= List.filter<Principal>(token.tokenAdmins, func n { n != principalToRemoveAsAdmin });       
+            token.tokenAdmins := List.filter<Principal>(token.tokenAdmins, func n { n != principalToRemoveAsAdmin });
             return #ok("Principal was added as admin user.");
         };
 
         return #ok("Principal was not in the admin list.");
     };
 
-    public func list_admin_users(token: TokenData) : [Principal] {
+    public func list_admin_users(token : TokenData) : [Principal] {
         return List.toArray<Principal>(token.tokenAdmins);
     };
-
 
     /// Returns the default subaccount for cases where a user does
     /// not specify it.
     public func default_subaccount() : Subaccount {
         Blob.fromArray(
-            Array.tabulate(32, func(_ : Nat) : Nat8 { 0 }),
+            Array.tabulate(32, func(_ : Nat) : Nat8 { 0 })
         );
     };
 

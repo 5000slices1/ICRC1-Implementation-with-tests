@@ -1,20 +1,14 @@
 import Blob "mo:base/Blob";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
-import Option "mo:base/Option";
 import Principal "mo:base/Principal";
-import Cycles "mo:base/ExperimentalCycles";
 import Bool "mo:base/Bool";
 import Account "Account/Account";
 import Trie "mo:base/Trie";
-import List "mo:base/List";
 import Utils "Utils/Utils";
 import Transfer "Transfer/Transfer";
-import Archive "../../Canisters/Archive";
 import T "../../Types/Types.All";
-import {ConstantTypes} = "../../Types/Types.All";
 import ArchiveHelper "Archive/ArchiveHelper";
-
 
 module {
     let { SB } = Utils;
@@ -25,11 +19,9 @@ module {
     private type AccountBalances = T.AccountTypes.AccountBalances;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
     private type TransferResult = T.TransactionTypes.TransferResult;
-    private type SupportedStandard = T.TokenTypes.SupportedStandard;    
+    private type SupportedStandard = T.TokenTypes.SupportedStandard;
     private type TokenData = T.TokenTypes.TokenData;
-    private type MetaDatum = T.TokenTypes.MetaDatum;    
-    
-                   
+    private type MetaDatum = T.TokenTypes.MetaDatum;
 
     /// Retrieve the name of the token
     public func icrc1_name(token : TokenData) : Text {
@@ -50,7 +42,6 @@ module {
     public func icrc1_fee(token : TokenData) : Balance {
         token.defaultFee;
     };
- 
 
     /// Retrieve all the metadata of the token
     public func icrc1_metadata(token : TokenData) : [MetaDatum] {
@@ -59,25 +50,23 @@ module {
             ("icrc1:name", #Text(token.name)),
             ("icrc1:symbol", #Text(token.symbol)),
             ("icrc1:decimals", #Nat(Nat8.toNat(token.decimals))),
-            ("icrc1:minting_allowed", #Text(debug_show(token.minting_allowed))),
+            ("icrc1:minting_allowed", #Text(debug_show (token.minting_allowed))),
             ("icrc1:logo", #Text(token.logo)),
-        ]
+        ];
     };
 
-
     /// Returns the total supply of circulating tokens
-    public func icrc1_total_supply(token : TokenData) : Balance {                
-        var iter = Trie.iter(token.accounts.trie);        
-        var totalBalances:Nat = 0;
-               
-        for ((k:Blob,v:T.CommonTypes.Balance) in iter) {                                                
-            totalBalances:=totalBalances + v;                        
+    public func icrc1_total_supply(token : TokenData) : Balance {
+        var iter = Trie.iter(token.accounts.trie);
+        var totalBalances : Nat = 0;
+
+        //TODO: Maybe use variables for this, and do not iterate all balances.
+        for ((k : Blob, v : T.CommonTypes.Balance) in iter) {
+            totalBalances := totalBalances + v;
         };
 
         return totalBalances;
     };
-
-
 
     /// Returns the account with the permission to mint tokens
     ///
@@ -95,96 +84,81 @@ module {
         Utils.get_balance(accounts, encoded_account);
     };
 
-    /// Transfers tokens from one account to another account (minting and burning included)    
+    /// Transfers tokens from one account to another account (minting and burning included)
     public func icrc1_transfer(
         token : TokenData,
         args : TransferArgs,
         caller : Principal,
-        archive_canisterIds: T.ArchiveTypes.ArchiveCanisterIds
+        archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
     ) : async* TransferResult {
 
-       
         let from = {
             owner = caller;
             subaccount = args.from_subaccount;
         };
 
-        
-        
-        let tx_kind:T.TransactionTypes.TxKind = if (from == token.minting_account) {
-           
-            if (token.minting_allowed == false){                            
-                return #Err(#GenericError {error_code = 401;message = "Error: Minting not allowed for this token.";});
+        let tx_kind : T.TransactionTypes.TxKind = if (from == token.minting_account) {
+
+            if (token.minting_allowed == false) {
+                return #Err(#GenericError { error_code = 401; message = "Error: Minting not allowed for this token." });
             };
 
-            if (caller != token.minting_account.owner)
-            {                
+            if (caller != token.minting_account.owner) {
                 return #Err(
-                #GenericError {
-                    error_code = 401;
-                    message = "Unauthorized: Minting not allowed.";
-                },);
+                    #GenericError {
+                        error_code = 401;
+                        message = "Unauthorized: Minting not allowed.";
+                    }
+                );
             };
-            
-            #mint
+
+            #mint;
         } else if (args.to == token.minting_account) {
-            #burn
-        } else {                              
-            #transfer
+            #burn;
+        } else {
+            #transfer;
         };
- 
+
         let feeFromRequest = args.fee;
-        let tx_req:T.TransactionTypes.TransactionRequest = Utils.create_transfer_req(args, caller, tx_kind, token);
+        let tx_req : T.TransactionTypes.TransactionRequest = Utils.create_transfer_req(args, caller, tx_kind, token);
 
         switch (Transfer.validate_request(token, tx_req, feeFromRequest)) {
-            case (#err(errorType)) {                
+            case (#err(errorType)) {
                 return #Err(errorType);
             };
             case (#ok(_)) {};
         };
 
-        let { encoded; amount } = tx_req; 
+        let { encoded; amount } = tx_req;
 
         // process transaction
-        switch(tx_req.kind){
-            case(#mint){
+        switch (tx_req.kind) {
+            case (#mint) {
                 Utils.mint_balance(token, encoded.to, amount);
             };
-            case(#burn){
+            case (#burn) {
                 Utils.burn_balance(token, encoded.from, amount);
             };
-            case(#transfer){
-                                                  
+            case (#transfer) {
+
                 Utils.transfer_balance(token, tx_req);
 
                 // burn fee
                 Utils.burn_balance(token, encoded.from, tx_req.fee);
             };
         };
-        
-        // store transaction
-        let tx_index:Nat = await* store_transaction(token,tx_req, archive_canisterIds );
-        // let index = SB.size(token.transactions) + token.archive.stored_txs;
-        // let tx:Transaction = Utils.req_to_tx(tx_req, index);
-        // SB.add(token.transactions, tx);
 
-        // // transfer transaction to archive if necessary
-        // let result:(Bool,?Principal) = await* ArchiveHelper.append_transactions_into_archive_if_needed(token);
-        // if (result.0 == true){
-        //     switch(result.1){
-        //         case (?principal) ignore ArchiveHelper.updateCanisterIdList(principal,archive_canisterIds );
-        //         case (null) {};
-        //     }
-        // };
-                
+        // store transaction
+        let tx_index : Nat = await* store_transaction(token, tx_req, archive_canisterIds);
+
         #Ok(tx_index);
     };
 
     public func store_transaction(
-        token : TokenData, 
-        tx_req:T.TransactionTypes.TransactionRequest,
-        archive_canisterIds: T.ArchiveTypes.ArchiveCanisterIds
-    ):async* Nat{
+        token : TokenData,
+        tx_req : T.TransactionTypes.TransactionRequest,
+        archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
+    ) : async* Nat {
 
         // store transaction
         let index = SB.size(token.transactions) + token.archive.stored_txs;
@@ -192,12 +166,12 @@ module {
         SB.add(token.transactions, tx);
 
         // transfer transaction to archive if necessary
-        let result:(Bool,?Principal) = await* ArchiveHelper.append_transactions_into_archive_if_needed(token);
-        if (result.0 == true){
-            switch(result.1){
-                case (?principal) ignore ArchiveHelper.updateCanisterIdList(principal,archive_canisterIds );
+        let result : (Bool, ?Principal) = await* ArchiveHelper.append_transactions_into_archive_if_needed(token);
+        if (result.0 == true) {
+            switch (result.1) {
+                case (?principal) ignore ArchiveHelper.updateCanisterIdList(principal, archive_canisterIds);
                 case (null) {};
-            }
+            };
         };
 
         return tx.index;
@@ -207,13 +181,5 @@ module {
     public func icrc1_supported_standards(token : TokenData) : [SupportedStandard] {
         SB.toArray(token.supported_standards);
     };
-
-  
-
-   
-
-
-   
-
 
 };

@@ -1,36 +1,25 @@
-import Array "mo:base/Array";
-import Blob "mo:base/Blob";
-import Debug "mo:base/Debug";
 import Int "mo:base/Int";
-import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
-import Nat8 "mo:base/Nat8";
-import Option "mo:base/Option";
-import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
-
 import Itertools "mo:itertools/Iter";
-import StableBuffer "mo:StableBuffer/StableBuffer";
-import STMap "mo:StableTrieMap";
-
 import Account "../Account/Account";
 import TransactionTypes = "../../../Types/Types.Transaction";
 import TokenTypes "../../../Types/Types.Token";
-import CommonTypes "../../../Types/Types.Common" ;
+import CommonTypes "../../../Types/Types.Common";
 import Utils "../Utils/Utils";
 
 /// Token transfer related functions are defined here
 module {
     let { SB } = Utils;
-    
+
     private type Balance = CommonTypes.Balance;
     private type Memo = TransactionTypes.Memo;
     private type TokenData = TokenTypes.TokenData;
     private type TransactionRequest = TransactionTypes.TransactionRequest;
     private type TransferError = TransactionTypes.TransferError;
-        
+
     /// Checks if a transaction memo is valid
     public func validate_memo(memo : ?Memo) : Bool {
         switch (memo) {
@@ -145,9 +134,9 @@ module {
             case (?tx_fee) {
 
                 //changed becasue on https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md
-                //it says there:  If the fee argument does not agree with the ledger fee, 
+                //it says there:  If the fee argument does not agree with the ledger fee,
                 //                the ledger MUST return variant { BadFee = record { expected_fee = ... } } error.
-                if (tx_fee != token.defaultFee) { 
+                if (tx_fee != token.defaultFee) {
                     return false;
                 };
 
@@ -158,7 +147,6 @@ module {
             };
         };
 
-        
         true;
     };
 
@@ -166,7 +154,7 @@ module {
     public func validate_request(
         token : TokenData,
         tx_req : TransactionRequest,
-        originalfeeFromRequest:?Nat
+        originalfeeFromRequest : ?Nat,
     ) : Result.Result<(), TransferError> {
 
         if (tx_req.from == tx_req.to) {
@@ -174,7 +162,7 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "The sender cannot have the same account as the recipient.";
-                }),
+                })
             );
         };
 
@@ -182,8 +170,8 @@ module {
             return #err(
                 #GenericError({
                     error_code = 0;
-                    message = "Invalid account entered for sender. "  # debug_show(tx_req.from);
-                }),
+                    message = "Invalid account entered for sender. " # debug_show (tx_req.from);
+                })
             );
         };
 
@@ -191,8 +179,8 @@ module {
             return #err(
                 #GenericError({
                     error_code = 0;
-                    message = "Invalid account entered for recipient " # debug_show(tx_req.to);
-                }),
+                    message = "Invalid account entered for recipient " # debug_show (tx_req.to);
+                })
             );
         };
 
@@ -201,7 +189,7 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "Memo must not be more than 32 bytes";
-                }),
+                })
             );
         };
 
@@ -210,28 +198,28 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "Amount must be greater than 0";
-                }),
+                })
             );
         };
 
-        if (tx_req.kind == #transfer or tx_req.kind ==#mint){
-            if (tx_req.amount <= tx_req.fee) {                
+        if (tx_req.kind == #transfer or tx_req.kind == #mint) {
+            if (tx_req.amount <= tx_req.fee) {
                 return #err(
                     #GenericError({
                         error_code = 0;
                         message = "Amount must be greater than fee";
-                    }),
+                    })
                 );
             };
         };
 
         switch (tx_req.kind) {
             case (#transfer) {
-                if (not validate_fee(token,originalfeeFromRequest)) {
+                if (not validate_fee(token, originalfeeFromRequest)) {
                     return #err(
                         #BadFee {
                             expected_fee = token.defaultFee;
-                        },
+                        }
                     );
                 };
 
@@ -239,29 +227,29 @@ module {
                     token.accounts,
                     tx_req.encoded.from,
                 );
-                                                
-                if (tx_req.amount + tx_req.fee > balance) {                     
-                    return #err(#InsufficientFunds { balance  });
-                    
+
+                if (tx_req.amount + tx_req.fee > balance) {
+                    return #err(#InsufficientFunds { balance });
+
                 };
             };
 
             case (#mint) {
-                if (token.minting_allowed == false){
-                    return #err(#GenericError({error_code = 0;message = "Minting not allowed";}));                    
+                if (token.minting_allowed == false) {
+                    return #err(#GenericError({ error_code = 0; message = "Minting not allowed" }));
                 };
 
-                let newAmount:Nat = Nat.max(token.minted_tokens - token.burned_tokens , 0);
-                if (newAmount > token.max_supply){
-                         
-                    return #err(#GenericError({error_code = 0;message = "Total supply would be exceeded. Minting rejected.";}));
-                };                
+                let newAmount : Nat = Nat.max(token.minted_tokens - token.burned_tokens, 0);
+                if (newAmount > token.max_supply) {
+
+                    return #err(#GenericError({ error_code = 0; message = "Total supply would be exceeded. Minting rejected." }));
+                };
             };
-			
+
             case (#burn) {
                 if (tx_req.to == token.minting_account and tx_req.amount < token.min_burn_amount) {
                     return #err(
-                        #BadBurn { min_burn_amount = token.min_burn_amount },
+                        #BadBurn { min_burn_amount = token.min_burn_amount }
                     );
                 };
 
@@ -288,7 +276,7 @@ module {
                     return #err(
                         #CreatedInFuture {
                             ledger_time = Nat64.fromNat(Int.abs(Time.now()));
-                        },
+                        }
                     );
                 };
 
@@ -297,7 +285,7 @@ module {
                         return #err(
                             #Duplicate {
                                 duplicate_of = tx_index;
-                            },
+                            }
                         );
                     };
                     case (_) {};

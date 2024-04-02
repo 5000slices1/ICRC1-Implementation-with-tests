@@ -3,21 +3,25 @@ import Debug "mo:base/Debug";
 import Archive "Archive/Archive.ActorTest";
 import ICRC1 "ICRC1/ICRC1.ActorTest";
 import ICRC2 "ICRC2/ICRC2.ActorTest";
+import SlicesTokenActorTest "SlicesToken/SlicesToken.ActorTest";
 import AccountTest "Account/Account.Test";
 import Text "mo:base/Text";
 import ActorSpec "./utils/ActorSpec";
 import ExtendedTokenActorTest "ExtendedToken/ExtendedToken.ActorTest";
 
 actor {
-    let { run } = ActorSpec;
 
     let test_modules = [
 
         { function = ICRC1.test; description = "ICRC1.test" : Text },
         { function = ICRC2.test; description = "ICRC2.test" : Text },
         {
+            function = SlicesTokenActorTest.test;
+            description = "SlicesToken.test" : Text;
+        },
+        {
             function = ExtendedTokenActorTest.test;
-            description = "ExtendedTokenActorTest.test" : Text;
+            description = "ExtendedToken.test" : Text;
         },
         { function = Archive.test; description = "Archive.test" : Text },
         { function = AccountTest.test; description = "Account.test" : Text }
