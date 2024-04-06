@@ -9,6 +9,7 @@ import Utils "../Utils/Utils";
 import Transfer "../Transfer/Transfer";
 import T "../../../Types/Types.All";
 import ArchiveHelper "../Archive/ArchiveHelper";
+import Model "../../../Types/Types.Model";
 
 module {
     let { SB } = Utils;
@@ -89,6 +90,7 @@ module {
         args : TransferArgs,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
+        model:Model.Model
     ) : async* TransferResult {
 
         let from = {
@@ -148,7 +150,7 @@ module {
         };
 
         // store transaction
-        let tx_index : Nat = await* store_transaction(token, tx_req, archive_canisterIds);
+        let tx_index : Nat = await* store_transaction(token, tx_req, archive_canisterIds, model);
 
         #Ok(tx_index);
     };
@@ -157,6 +159,7 @@ module {
         token : TokenData,
         tx_req : T.TransactionTypes.TransactionRequest,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
+        model:Model.Model
     ) : async* Nat {
 
         // store transaction
@@ -165,7 +168,7 @@ module {
         SB.add(token.transactions, tx);
 
         // transfer transaction to archive if necessary
-        let result : (Bool, ?Principal) = await* ArchiveHelper.append_transactions_into_archive_if_needed(token);
+        let result : (Bool, ?Principal) = await* ArchiveHelper.append_transactions_into_archive_if_needed(token,model);
         if (result.0 == true) {
             switch (result.1) {
                 case (?principal) ignore ArchiveHelper.updateCanisterIdList(principal, archive_canisterIds);

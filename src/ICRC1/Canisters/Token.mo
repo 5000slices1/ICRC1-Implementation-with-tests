@@ -80,7 +80,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
-        await* ICRC1.icrc1_transfer(token, args, caller, model.settings.archive_canisterIds);
+        await* ICRC1.icrc1_transfer(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
     // ------------------------------------------------------------------------------------------
@@ -188,14 +188,14 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
-        await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds);
+        await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
     public shared ({ caller }) func burn(args : T.TransactionTypes.BurnArgs) : async T.TransactionTypes.TransferResult {
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
-        await* ExtendedToken.burn(token, args, caller, model.settings.archive_canisterIds);
+        await* ExtendedToken.burn(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
     public shared ({ caller }) func set_name(name : Text) : async T.TokenTypes.SetTextParameterResult {

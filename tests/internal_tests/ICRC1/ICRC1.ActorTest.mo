@@ -10,6 +10,7 @@ import U "../../../src/ICRC1/Modules/Token/Utils/Utils";
 import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import TokenTypes "../../../src/ICRC1/Types/Types.Token";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
+import Model "../../../src/ICRC1/Types/Types.Model";
 
 module {
 
@@ -82,6 +83,8 @@ module {
             advanced_settings = null;
             minting_allowed = true;
         };
+
+        let defaultModel:Model.Model = Initializer.init_model();
 
         return describe(
             "ICRC1 Token Implementation Tests",
@@ -279,6 +282,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let transfer_args : TransferArgs = {
@@ -295,6 +299,7 @@ module {
                                     transfer_args,
                                     user1.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 assertAllTrue([

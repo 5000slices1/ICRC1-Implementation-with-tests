@@ -46,17 +46,17 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     stable var prevArchive : ArchiveTypes.ArchiveInterface = actor ("aaaaa-aa");
     stable var nextArchive : ArchiveTypes.ArchiveInterface = actor ("aaaaa-aa");
     stable var first_tx_index_number : Nat = 0;
-    stable var last_tx_index_number_plus_one : Nat = 0;
+    stable var last_tx_index_number : Nat = 0;
     stable var at_least_one_transaction_was_added:Bool = false;
 
     stable var canisterId : Principal = Principal.fromText("aaaaa-aa");
     stable var wasInitialized = false;
 
-    //These fields are defined here (as stable),  and not inside 'Types.Constants.mo', because these values must not change for the canister.
-    stable let MAX_MEMORY = 27917287424; // approx 26 GiB
-    stable let MAX_HEAP_SIZE = 2018634629; // approx 1.88 GiB
+    //These fields are changed to 'var', so in test-system we can change these numbers during calling the init method....
+    stable var MAX_MEMORY:Nat = 27917287424; // approx 26 GiB
+    stable var MAX_HEAP_SIZE:Nat = 2018634629; // approx 1.88 GiB
 
-    public shared ({ caller }) func init(first_tx_number : Nat) : async Principal {
+    public shared ({ caller }) func init(first_tx_number : Nat, max_memory:Nat, max_heap:Nat) : async Principal {
         
         if (caller != ledger_canister_id) {
             throw Error.reject("Unauthorized Access: Only the ledger canister can access this archive canister");
@@ -66,9 +66,12 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
             return canisterId;
         };
 
+        MAX_MEMORY:=max_memory;
+        MAX_HEAP_SIZE:=max_heap;
+
         // Set first and last index number
         first_tx_index_number := first_tx_number;
-        last_tx_index_number_plus_one := first_tx_number;
+        last_tx_index_number := first_tx_number;
 
         canisterId := Principal.fromActor(this);
         wasInitialized := true;
@@ -87,13 +90,8 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
         first_tx_index_number;
     };
 
-    public shared query func get_last_tx() : async Nat {
-
-        if (at_least_one_transaction_was_added == false){
-            return 0;
-        };
-        
-        last_tx_index_number_plus_one - 1;
+    public shared query func get_last_tx() : async Nat {                
+        last_tx_index_number;
     };
 
     public shared ({ caller }) func set_prev_archive(prev_archive : ArchiveTypes.ArchiveInterface) : async Result.Result<(), Text> {
@@ -151,6 +149,31 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
 
     public shared query func get_transaction(tx_index : TxIndex) : async ?Transaction {
 
+        get_transaction_internal(tx_index);
+
+
+    };
+
+     private func get_transaction_internal(tx_index : TxIndex) : ?Transaction {
+
+        // Not use this at the moment. (Therefore commented out) 
+        // Because else 'get_transaction(s)' and 'callBack' cannot be query func anymore
+        // Also will be much slower and cost more cycles....
+
+        // if (tx_index < first_tx_index_number){
+        //     var previousArchive = prevArchive;
+        //     let defaultPrincipal = Principal.fromText("aaaaa-aa");
+                       
+        //     while(Principal.fromActor(previousArchive) != defaultPrincipal){
+        //         let firstTxPrevArchive = await previousArchive.get_first_tx();
+        //         if (firstTxPrevArchive <= tx_index){
+        //             return await previousArchive.get_transaction(tx_index);
+        //         };
+        //         previousArchive := await previousArchive.get_prev_archive();
+        //     };
+        //     return null;                       
+        // };
+
         let indexResult = get_hashlist_index_for_txindex(tx_index);
         if (indexResult.0 == false) {
             return null;
@@ -169,52 +192,44 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
 
     };
 
+
+
     public shared query func get_transactions(req : GetTransactionsRequest) : async TransactionRange {
         
         if (at_least_one_transaction_was_added == false){
             return { transactions = []};
         };
-        let { start; length } = req;
-        let numberOfTransactionsToReturn = Nat.min(Nat.max(0, length), ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
-        let startTransactionNumber : Nat = Nat.max(start, first_tx_index_number);
-
-        let hashListIndexResult = get_hashlist_index_for_txindex(startTransactionNumber);
-        if (hashListIndexResult.0 == false) {
-            return { transactions = [] };
-        };
-        let firstHashListIndex = hashListIndexResult.1;
-        let lastHashListIndex : Nat = Nat.max(firstHashListIndex + numberOfTransactionsToReturn - 1, firstHashListIndex);
-
-        let resultBlobs : [?Blob] = hashList.get_at_range(transactionsKey, firstHashListIndex, lastHashListIndex);
-
-        let size : Nat = Array.size(resultBlobs);
-        if (size == 0) {
-            return { transactions = [] };
+        let { start; length } = req;        
+        let firstTx : Nat = Nat.max(start, first_tx_index_number);
+        
+        var countTx = Nat.min(length, ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
+        
+        if (countTx == 0){
+            return { transactions = []};
         };
 
-        let buffer = Buffer.Buffer<Transaction>(size);
+        let maxCount:Nat = last_tx_index_number - firstTx + 1;   
+        countTx:=Nat.min(countTx, maxCount);
+       
+        let buffer = Buffer.Buffer<Transaction>(countTx);
 
-        for (i in Iter.range(0, size -1)) {
-            let blobOrNull : ?Blob = resultBlobs[i];
-            switch (blobOrNull) {
-                case (?blobValue) {
-                    let transactionOrNull : ?Transaction = from_candid (blobValue);
-                    switch (transactionOrNull) {
-                        case (?transaction) {
-                            buffer.add(transaction);
-                        };
-                        case (null) {};
-                    };
+        for(txindex in Iter.range(firstTx, firstTx + countTx - 1)){
+            
+            let transactionOrNull = get_transaction_internal(txindex);   
+            switch(transactionOrNull) {
+                case (?transaction){
+                    buffer.add(transaction);
                 };
-                case (_) {
-                    // do nothing
+                case (_){
+                    //do nothing
                 };
-            };
+            }   
         };
 
         return {
             transactions = Buffer.toArray(buffer);
         };
+        
     };
 
     public shared query func memory_is_full() : async Bool {
@@ -275,7 +290,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     private func add_transaction(transaction:Transaction) {
 
         // Check if TxIndex already exist, and if so then just return        
-        if (at_least_one_transaction_was_added == true and transaction.index < last_tx_index_number_plus_one){            
+        if (at_least_one_transaction_was_added == true and transaction.index <= last_tx_index_number){            
             return;
         };
         
@@ -284,18 +299,18 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
         // Add the transaction into hashList
         let result : (Nat, Nat64) = hashList.add(transactionsKey, tx_blob);
         let hashListIndex:Nat = result.0;
-
+        last_tx_index_number:=Nat.max(transaction.index,last_tx_index_number);        
         at_least_one_transaction_was_added:=true;
  
     
         // Add transactionIndex as key into hashtable, with hashList index as value, 
         // so that we can later find transaction by a given txIndex.
         // (It is safe to use hashList index as value, because no Transaction will be deleted at any time.)
-        let txIndexAsBlob : Blob = HashTable.Blobify.Nat.to_blob(last_tx_index_number_plus_one);
+        let txIndexAsBlob : Blob = HashTable.Blobify.Nat.to_blob(last_tx_index_number);
         let hashListIndexAsBlob : Blob = HashTable.Blobify.Nat.to_blob(hashListIndex);
         let txKeyAsBlob = combine_blobs([txIndexPreKey, txIndexAsBlob]);
         ignore hashTable.put(txKeyAsBlob, hashListIndexAsBlob);
-        last_tx_index_number_plus_one += 1;
+        
         
         // Add from and to as key into hashtable, with hashList index as value.
         // So that we can later get all transactions for a specific Principal

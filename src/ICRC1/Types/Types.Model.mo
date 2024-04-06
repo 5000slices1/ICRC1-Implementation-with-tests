@@ -17,6 +17,10 @@ module {
         var archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds;
         var tokenCanisterId : Principal;
         var autoTopupData : T.CanisterTypes.CanisterAutoTopUpData;
+        
+        // set as var, so during testing we can change these values
+        var ARCHIVE_MAX_MEMORY:Nat; 
+        var ARCHIVE_MAX_HEAP_SIZE:Nat;
     };
 
     public type Model = {

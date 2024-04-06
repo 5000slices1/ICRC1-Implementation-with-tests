@@ -2,8 +2,6 @@ import Result "mo:base/Result";
 import Principal "mo:base/Principal";
 import TransactionTypes "Types.Transaction";
 import List "mo:base/List";
-import TransactionType "Types.Transaction";
-import AccountTypes "Types.Account";
 
 module {    
   
@@ -21,7 +19,7 @@ module {
     public type ArchiveInterface = actor {
 
         //Initialize method
-        init: shared (first_tx_number:Nat) -> async Principal;
+        init: shared (first_tx_number:Nat, max_memory:Nat, max_heap:Nat) -> async Principal;
 
         /// Appends the given transactions to the archive.
         /// > Only the Ledger canister is allowed to call this method
@@ -31,10 +29,10 @@ module {
         total_transactions : shared query () -> async Nat;
 
         /// Returns the transaction at the given index
-        get_transaction : shared query (TxIndex) -> async ?Transaction;
+        get_transaction : shared query(TxIndex) -> async ?Transaction;
 
         /// Returns the transactions in the given range
-        get_transactions : shared query (GetTransactionsRequest) -> async TransactionRange;
+        get_transactions : shared query(GetTransactionsRequest) -> async TransactionRange;
 
         get_first_tx : shared query () -> async Nat;
 
