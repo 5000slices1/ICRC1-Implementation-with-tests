@@ -201,17 +201,17 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             case (null) 15; // 15 minutes as default
         };
 
-        let timerSeconds = minutesToUse * 60;
-        let nanoSecondsToUse:Nat = timerSeconds * 1000_000_000;
-        let expirationTime:Int = Time.now() + nanoSecondsToUse;
-
-        model.settings.token_operations_are_paused_expiration_time:= expirationTime;
-        model.settings.token_operations_are_paused:= true;       
-        
         if (model.settings.token_operations_are_paused == true){
             cancelTimer(model.settings.token_operations_timer_id);
         };
-
+        
+        let timerSeconds = minutesToUse * 60;
+        let nanoSecondsToUse:Nat = timerSeconds * 1000_000_000;
+        let expirationTime:Int = Time.now() + nanoSecondsToUse;
+        
+        model.settings.token_operations_are_paused_expiration_time:= expirationTime;
+        model.settings.token_operations_are_paused:= true;       
+                
         model.settings.token_operations_timer_id:= setTimer<system>(
             #seconds timerSeconds,
             func() : async () {
