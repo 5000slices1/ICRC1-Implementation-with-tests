@@ -103,31 +103,31 @@ module {
                             (await archive.total_transactions()) == 500,
                         ]);
                     },
+                ),                
+                it(
+                    "append_transactions() doesn't duplicate",
+                    do {
+                        create_canister_and_add_cycles<system>(0.1);
+                        let archive = await Archive.Archive();
+
+                        let txs = new_txs(1000);
+                        ignore await archive.append_transactions(txs);
+
+                        // added 1 extra transaction that is not duplicated, and should be appended
+                        let duplicated_txs = new_txs(1001);
+                        ignore await archive.append_transactions(duplicated_txs);
+
+                        // also testing when tx falls inside the bucket
+                        let duplicated_and_inside_bucket_txs = new_txs(1501);
+
+                        assertAllTrue([
+                            (await archive.total_transactions()) == 1001,
+                            (await archive.append_transactions(duplicated_and_inside_bucket_txs)) == #ok(),
+                            (await archive.total_transactions()) == 1501,
+                        ]);
+
+                    },
                 ),
-                // TODO: uncomment and make it work
-                //  it(
-                //     "append_transactions() doesn't duplicate",
-                //     do {
-                //         create_canister_and_add_cycles<system>(0.1);
-                //         let archive = await Archive.Archive();
-
-                //         let txs = new_txs(1000);
-                //         ignore await archive.append_transactions(txs);
-
-                //         // added 1 extra transaction that is not duplicated, and should be appended
-                //         let duplicated_txs = new_txs(1001);
-                //         ignore await archive.append_transactions(duplicated_txs);
-
-                //         // also testing when tx falls inside the bucket
-                //         let duplicated_and_inside_bucket_txs = new_txs(1501);
-
-                //         assertAllTrue([
-                //             (await archive.total_transactions()) == 1001,
-                //             (await archive.append_transactions(duplicated_and_inside_bucket_txs)) == #ok(),
-                //             (await archive.total_transactions()) == 1501,
-                //         ]);
-                //     },
-                // ),
                 it(
                     "get_transaction() - with 3555 transactions",
                     do {
@@ -138,8 +138,12 @@ module {
                         ignore await archive.append_transactions(txs);
 
                         var returnResult = true;
-                        let firstResult = assertAllEqualWithDescription<Nat, Nat>([
-                        { actual = Option.make(await archive.total_transactions()); expected = ?3555; description = "total transactions == 3555" # debug_show (3555); areEqual = func(A, E) { A == E } }]);
+                        let firstResult = assertAllEqualWithDescription<Nat, Nat>([{
+                            actual = Option.make(await archive.total_transactions());
+                            expected = ?3555;
+                            description = "total transactions == 3555" # debug_show (3555);
+                            areEqual = func(A, E) { A == E };
+                        }]);
 
                         returnResult := returnResult and firstResult;
 
@@ -170,8 +174,12 @@ module {
                         ignore await archive.append_transactions(txs);
 
                         var returnResult = true;
-                        let firstResult = assertAllEqualWithDescription<Nat, Nat>([
-                        { actual = Option.make(await archive.total_transactions()); expected = ?55000; description = "total transactions == 55000"; areEqual = func(A, E) { A == E } }]);
+                        let firstResult = assertAllEqualWithDescription<Nat, Nat>([{
+                            actual = Option.make(await archive.total_transactions());
+                            expected = ?55000;
+                            description = "total transactions == 55000";
+                            areEqual = func(A, E) { A == E };
+                        }]);
 
                         returnResult := returnResult and firstResult;
 
@@ -209,8 +217,12 @@ module {
                         ignore await archive.append_transactions(txs);
 
                         var returnResult = true;
-                        let firstResult = assertAllEqualWithDescription<Nat, Nat>([
-                        { actual = Option.make(await archive.total_transactions()); expected = ?9000; description = "total transactions == 9000"; areEqual = func(A, E) { A == E } }]);
+                        let firstResult = assertAllEqualWithDescription<Nat, Nat>([{
+                            actual = Option.make(await archive.total_transactions());
+                            expected = ?9000;
+                            description = "total transactions == 9000";
+                            areEqual = func(A, E) { A == E };
+                        }]);
 
                         returnResult := returnResult and firstResult;
 

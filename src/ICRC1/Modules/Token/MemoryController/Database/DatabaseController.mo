@@ -80,7 +80,11 @@ module {
             let allowanceItemOrNull : ?T.TransactionTypes.DbAllowance = get_allowance_internal(ownerEncodedAccount, spenderEncodedAccount);
             switch (allowanceItemOrNull) {
                 case (?allowanceItem) {
-                    let newAmount : Nat = Nat.max(allowanceItem.allowance - reduceByAmount, 0);
+                    var newAmount:Nat = 0;
+                    if (reduceByAmount < allowanceItem.allowance){
+                        newAmount:= allowanceItem.allowance - reduceByAmount;
+                    };
+                    
                     let newAllowance : T.TransactionTypes.DbAllowance = {
                         allowanceItem with allowance = newAmount
                     };

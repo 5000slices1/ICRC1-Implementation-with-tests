@@ -40,12 +40,12 @@ module {
             };
             Cycles.add<system>(ConstantTypes.ARCHIVE_CYCLES_AUTOREFILL);
             archive.canister := await Archive.Archive();
-            newArchiveCanisterId := Option.make(await archive.canister.init());
+            newArchiveCanisterId := Option.make(await archive.canister.init(0));
             canisterWasAdded := true;
 
         } else {
             let add = await* should_add_archive(token);
-            if (add == 1) {
+            if (add == true) {
 
                 if (mainTokenCycleBalance < ConstantTypes.TOKEN_CYCLES_TO_KEEP) {
                     return (canisterWasAdded, newArchiveCanisterId);
@@ -76,17 +76,10 @@ module {
     };
 
     /// Here it is decided if additional archive canister should be created
-    public func should_add_archive(token : TokenData) : async* Nat {
+    public func should_add_archive(token : TokenData) : async* Bool {
 
         let { archive } = token;
-        let total_used = await archive.canister.total_used();
-        let remaining_capacity = await archive.canister.remaining_capacity();
-
-        if (total_used >= remaining_capacity) {
-            return 1;
-        };
-
-        0;
+        await archive.canister.memory_is_full();        
     };
 
     /// Creates a new archive canister
@@ -94,20 +87,16 @@ module {
         let { archive } = token;
 
         //Add cycles, because we are creating new canister
-        Cycles.add<system>(T.ConstantTypes.ARCHIVE_CYCLES_AUTOREFILL);
+        Cycles.add<system>(T.ConstantTypes.ARCHIVE_CYCLES_AUTOREFILL);    
         let newCanister = await Archive.Archive();
-        let canisterId = await newCanister.init();
-
+                
         let oldCanister = archive.canister;
-        let old_total_tx : Nat = await oldCanister.total_transactions();
-        let old_first_tx : Nat = await oldCanister.get_first_tx();
-        let old_last_tx : Nat = old_first_tx + old_total_tx - 1;
-
-        ignore await oldCanister.set_last_tx(old_last_tx);
+        let old_last_tx : Nat = await oldCanister.get_last_tx();            
+        let canisterId = await newCanister.init(old_last_tx + 1);
+        
+     
         ignore await oldCanister.set_next_archive(newCanister);
         ignore await newCanister.set_prev_archive(oldCanister);
-
-        ignore await newCanister.set_first_tx(old_last_tx + 1);
 
         archive.canister := newCanister;
         return canisterId;
