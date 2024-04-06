@@ -6,6 +6,7 @@ import Utils "../Utils/Utils";
 import T "../../../Types/Types.All";
 import { ConstantTypes } = "../../../Types/Types.All";
 import ICRC1 "ICRC1.Implementation";
+import Model "../../../Types/Types.Model";
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)
@@ -67,6 +68,7 @@ module {
         args : Mint,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
+        model:Model.Model
     ) : async* TransferResult {
 
         if (token.minting_allowed == false) {
@@ -79,7 +81,7 @@ module {
                 fee = null;
             };
 
-            await* ICRC1.icrc1_transfer(token, transfer_args, caller, archive_canisterIds);
+            await* ICRC1.icrc1_transfer(token, transfer_args, caller, archive_canisterIds, model);
 
         } else {
             return #Err(#GenericError { error_code = 401; message = "Unauthorized: Minting not allowed." });
@@ -92,6 +94,7 @@ module {
         args : BurnArgs,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
+        model:Model.Model
     ) : async* TransferResult {
 
         let transfer_args : TransferArgs = {
@@ -99,7 +102,7 @@ module {
             fee = null;
         };
 
-        await* ICRC1.icrc1_transfer(token, transfer_args, caller, archive_canisterIds);
+        await* ICRC1.icrc1_transfer(token, transfer_args, caller, archive_canisterIds, model);
     };
 
     /// Returns the total number of transactions that have been processed by the given token.

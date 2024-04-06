@@ -11,6 +11,7 @@ import T "../../../src/ICRC1/Types/Types.All";
 import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
 import SlicesToken "../../../src/ICRC1/Modules/Token/Implementations/SLICES.Implementation";
+import Model "../../../src/ICRC1/Types/Types.Model";
 
 module {
 
@@ -25,7 +26,7 @@ module {
     private type Mint = T.TransactionTypes.Mint;
     private type BurnArgs = T.TransactionTypes.BurnArgs;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
-
+    
     /// Formats a float to a nat balance and applies the correct number of decimal places
     public func balance_from_float(token : TokenData, float : Float) : Balance {
         if (float <= 0) {
@@ -80,6 +81,8 @@ module {
             minting_allowed = true;
         };
 
+        let defaultModel:Model.Model = Initializer.init_model();
+
         return describe(
             "Slices Token Implementation Tests",
             [
@@ -110,6 +113,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 ignore SlicesToken.admin_add_admin_user(canister.owner, user1.owner, token);
@@ -128,6 +132,7 @@ module {
                                     transfer_args,
                                     user1.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 assertAllTrue([
@@ -157,6 +162,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 ignore SlicesToken.admin_add_admin_user(canister.owner, user1.owner, token);
@@ -175,6 +181,7 @@ module {
                                     transfer_args,
                                     user1.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 assertAllTrue([
@@ -209,6 +216,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 ignore SlicesToken.feewhitelisting_add_principal(canister.owner, user2.owner, token);
@@ -226,6 +234,7 @@ module {
                                     transfer_args,
                                     user1.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 assertAllTrue([
@@ -255,6 +264,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 ignore SlicesToken.feewhitelisting_add_principal(canister.owner, user2.owner, token);
@@ -272,6 +282,7 @@ module {
                                     transfer_args,
                                     user1.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 assertAllTrue([

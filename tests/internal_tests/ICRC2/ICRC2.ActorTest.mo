@@ -12,6 +12,7 @@ import ICRC2 "../../../src/ICRC1/Modules/Token/Implementations/ICRC2.Implementat
 import MemoryController "../../../src/ICRC1/Modules/Token/MemoryController/MemoryController";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
+import Model "../../../src/ICRC1/Types/Types.Model";
 
 // ***************************************************************************************************
 // Many of these tests copied from Natlabs (and adjusted to make this work for this code-base)
@@ -91,6 +92,8 @@ module {
             minting_allowed = true;
         };
 
+        let defaultModel:Model.Model = Initializer.init_model();
+
         return describe(
             "ICRC2 Token Implementation Tests",
             [
@@ -118,6 +121,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -214,6 +218,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -268,6 +273,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -322,6 +328,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -383,6 +390,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let now = Nat64.fromNat(Int.abs(Time.now()));
@@ -447,6 +455,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -522,6 +531,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -596,6 +606,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args : T.TransactionTypes.ApproveArgs = {
@@ -680,6 +691,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 // 1. Alice wants to deposit 100 tokens on an ICRC-2 ledger to canister C.
@@ -768,6 +780,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 // 1. Canister C wants to transfer 100 tokens on an ICRC-2 ledger from Alice's account to Bob's account.
@@ -855,6 +868,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args1 : T.TransactionTypes.ApproveArgs = {
@@ -954,6 +968,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args1 : T.TransactionTypes.ApproveArgs = {
@@ -1056,6 +1071,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let approve_args1 : T.TransactionTypes.ApproveArgs = {

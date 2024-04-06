@@ -5,6 +5,7 @@ import Utils "../Utils/Utils";
 import Option "mo:base/Option";
 import Cycles "mo:base/ExperimentalCycles";
 import List "mo:base/List";
+import Model "../../../Types/Types.Model";
 
 module {
 
@@ -14,12 +15,12 @@ module {
     // Updates the token's data and manages the transactions
     //
     // **added at the end of any function that creates a new transaction**
-    public func append_transactions_into_archive_if_needed(token : TokenData) : async* (Bool, ?Principal) {
+    public func append_transactions_into_archive_if_needed(token : TokenData, model:Model.Model) : async* (Bool, ?Principal) {
         let txs_size = SB.size(token.transactions);
 
         if (txs_size >= ConstantTypes.MAX_TRANSACTIONS_IN_LEDGER) {
 
-            return await* append_transactions_into_archive_internal(token);
+            return await* append_transactions_into_archive_internal(token, model);
         };
 
         return (false, null);
@@ -27,7 +28,7 @@ module {
 
     // Moves the transactions from the ICRC1 canister to the archive canister
     // and returns a boolean that indicates the success of the data transfer
-    private func append_transactions_into_archive_internal(token : TokenData) : async* (Bool, ?Principal) {
+    private func append_transactions_into_archive_internal(token : TokenData, model:Model.Model) : async* (Bool, ?Principal) {
         let { archive; transactions } = token;
 
         var newArchiveCanisterId : ?Principal = null;
@@ -40,7 +41,13 @@ module {
             };
             Cycles.add<system>(ConstantTypes.ARCHIVE_CYCLES_AUTOREFILL);
             archive.canister := await Archive.Archive();
-            newArchiveCanisterId := Option.make(await archive.canister.init(0));
+            newArchiveCanisterId := Option.make(
+                await archive.canister.init(
+                    0,
+                    model.settings.ARCHIVE_MAX_MEMORY,
+                    model.settings.ARCHIVE_MAX_HEAP_SIZE                    
+                )
+            );
             canisterWasAdded := true;
 
         } else {
@@ -50,7 +57,7 @@ module {
                 if (mainTokenCycleBalance < ConstantTypes.TOKEN_CYCLES_TO_KEEP) {
                     return (canisterWasAdded, newArchiveCanisterId);
                 };
-                newArchiveCanisterId := Option.make(await* add_additional_archive(token));
+                newArchiveCanisterId := Option.make(await* add_additional_archive(token,model));
                 canisterWasAdded := true;
             };
         };
@@ -79,22 +86,25 @@ module {
     public func should_add_archive(token : TokenData) : async* Bool {
 
         let { archive } = token;
-        await archive.canister.memory_is_full();        
+        await archive.canister.memory_is_full();
     };
 
     /// Creates a new archive canister
-    public func add_additional_archive(token : TokenData) : async* Principal {
+    public func add_additional_archive(token : TokenData, model:Model.Model) : async* Principal {
         let { archive } = token;
 
         //Add cycles, because we are creating new canister
-        Cycles.add<system>(T.ConstantTypes.ARCHIVE_CYCLES_AUTOREFILL);    
+        Cycles.add<system>(T.ConstantTypes.ARCHIVE_CYCLES_AUTOREFILL);
         let newCanister = await Archive.Archive();
-                
+
         let oldCanister = archive.canister;
-        let old_last_tx : Nat = await oldCanister.get_last_tx();            
-        let canisterId = await newCanister.init(old_last_tx + 1);
-        
-     
+        let old_last_tx : Nat = await oldCanister.get_last_tx();
+        let canisterId = await newCanister.init(
+            old_last_tx + 1,
+            model.settings.ARCHIVE_MAX_MEMORY,
+            model.settings.ARCHIVE_MAX_HEAP_SIZE
+        );
+
         ignore await oldCanister.set_next_archive(newCanister);
         ignore await newCanister.set_prev_archive(oldCanister);
 

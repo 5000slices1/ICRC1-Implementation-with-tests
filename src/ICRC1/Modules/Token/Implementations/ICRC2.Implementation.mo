@@ -131,6 +131,7 @@ module {
             token,
             transactionRequest,
             memoryController.model.settings.archive_canisterIds,
+            memoryController.model
         );
 
         return #Ok(tx_index);

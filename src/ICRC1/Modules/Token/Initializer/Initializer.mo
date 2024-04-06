@@ -42,6 +42,9 @@ module {
                     var autoCyclesTopUpTimerId : Nat = 0;
                     var autoCyclesTopUpOccuredNumberOfTimes : Nat = 0;
                 };
+
+                var ARCHIVE_MAX_MEMORY:Nat = ConstantTypes.ARCHIVE_MAX_MEMORY;
+                var ARCHIVE_MAX_HEAP_SIZE:Nat = ConstantTypes.ARCHIVE_MAX_HEAP_SIZE;
             };
 
             databaseStorages : Model.DatabaseStorages = {

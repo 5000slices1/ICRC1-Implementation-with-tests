@@ -12,8 +12,9 @@ import ActorSpec "../utils/ActorSpec";
 import ICRC1 "../../../src/ICRC1/Modules/Token/Implementations/ICRC1.Implementation";
 import T "../../../src/ICRC1/Types/Types.All";
 import U "../../../src/ICRC1/Modules/Token/Utils/Utils";
-import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
+import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
+import Model "../../../src/ICRC1/Types/Types.Model";
 
 module {
 
@@ -204,7 +205,7 @@ module {
             true;
         };
 
-        func create_mints(token : TokenData, minting_principal : Principal, n : Nat) : async () {
+        func create_mints(token : TokenData, minting_principal : Principal, n : Nat, model:Model.Model) : async () {
             for (i in Itertools.range(0, n)) {
                 var res = await* ExtendedToken.mint(
                     token,
@@ -216,6 +217,7 @@ module {
                     },
                     minting_principal,
                     archive_canisterIds,
+                    model
                 );
             };
         };
@@ -233,6 +235,8 @@ module {
             advanced_settings = null;
             minting_allowed = true;
         };
+
+        let defaultModel:Model.Model = Initializer.init_model();
 
         return describe(
             "Extended Token Implementation Tests",
@@ -257,6 +261,7 @@ module {
                             mint_args,
                             args.minting_account.owner,
                             archive_canisterIds,
+                            defaultModel
                         );
 
                         assertAllTrue([
@@ -289,6 +294,7 @@ module {
                             mint_args,
                             args.minting_account.owner,
                             archive_canisterIds,
+                            defaultModel
                         );
 
                         assertAllTrue([
@@ -327,6 +333,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let burn_args : BurnArgs = {
@@ -339,7 +346,7 @@ module {
                                 let prev_balance = ICRC1.icrc1_balance_of(token, user1);
                                 let prev_total_supply = ICRC1.icrc1_total_supply(token);
 
-                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds);
+                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds,defaultModel);
 
                                 assertAllTrue([
                                     res == #Ok(1),
@@ -362,7 +369,7 @@ module {
                                     created_at_time = null;
                                 };
 
-                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds);
+                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds,defaultModel);
 
                                 assertAllTrue([
                                     res == #Err(
@@ -392,6 +399,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
+                                    defaultModel
                                 );
 
                                 let burn_args : BurnArgs = {
@@ -401,7 +409,7 @@ module {
                                     created_at_time = null;
                                 };
 
-                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds);
+                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds,defaultModel);
                                 assertAllTrue([
                                     res == #Err(#BadBurn({ min_burn_amount = args.min_burn_amount }))
                                 ]);
@@ -419,7 +427,7 @@ module {
                                 let args = default_token_args;
                                 let token = Initializer.tokenInit(args);
 
-                                await create_mints(token, canister.owner, 4123);
+                                await create_mints(token, canister.owner, 4123,defaultModel);
                                 [
                                     it(
                                         "Archive has 4000 stored txs",
