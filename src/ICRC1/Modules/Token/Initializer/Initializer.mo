@@ -45,6 +45,10 @@ module {
 
                 var ARCHIVE_MAX_MEMORY:Nat = ConstantTypes.ARCHIVE_MAX_MEMORY;
                 var ARCHIVE_MAX_HEAP_SIZE:Nat = ConstantTypes.ARCHIVE_MAX_HEAP_SIZE;
+                  
+                var token_operations_are_paused:Bool = false;                
+                var token_operations_are_paused_expiration_time:Int = 0;
+                var token_operations_timer_id:Nat = 0;
             };
 
             databaseStorages : Model.DatabaseStorages = {

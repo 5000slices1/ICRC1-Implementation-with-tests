@@ -1,5 +1,5 @@
 import List "mo:base/List";
-import { recurringTimer; cancelTimer } = "mo:base/Timer";
+import { setTimer; recurringTimer; cancelTimer } = "mo:base/Timer";
 import Nat "mo:base/Nat";
 import Cycles "mo:base/ExperimentalCycles";
 import Text "mo:base/Text";
@@ -11,6 +11,8 @@ import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
 import Bool "mo:base/Bool";
+import Time "mo:base/Time";
+import Int "mo:base/Int";
 import T "../Types/Types.All";
 import Constants "../Types/Types.Constants";
 import Account "../Modules/Token/Account/Account";
@@ -18,6 +20,8 @@ import Initializer "../Modules/Token/Initializer/Initializer";
 import Model "../Types/Types.Model";
 import Converters = "../Modules/Converters/Converters";
 import MemoryController "../Modules/Token/MemoryController/MemoryController";
+
+
 
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
@@ -179,10 +183,74 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         SlicesToken.get_holders(token, index, count);
     };
 
+
     // -------------------------------------------------------------------------------------------
 
     // ------------------------------------------------------------------------------------------
     // Additional token functions
+
+
+    /// Pause token operations. This is useful if we do some time consuming operations like update/upgrade or token scaling...
+    public shared ({ caller }) func token_operation_pause<system>(minutes : ?Nat):async Result.Result<Text, Text>{        
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
+            return #err("Unauthorized: Only minting account or admin can call this function..");
+        };
+
+        let minutesToUse : Nat = switch (minutes) {
+            case (?minutes) minutes;
+            case (null) 15; // 15 minutes as default
+        };
+
+        let timerSeconds = minutesToUse * 60;
+        let nanoSecondsToUse:Nat = timerSeconds * 1000_000_000;
+        let expirationTime:Int = Time.now() + nanoSecondsToUse;
+
+        model.settings.token_operations_are_paused_expiration_time:= expirationTime;
+        model.settings.token_operations_are_paused:= true;       
+        
+        if (model.settings.token_operations_are_paused == true){
+            cancelTimer(model.settings.token_operations_timer_id);
+        };
+
+        model.settings.token_operations_timer_id:= setTimer<system>(
+            #seconds timerSeconds,
+            func() : async () {
+                ignore await token_operation_continue<system>();
+            },
+        );
+
+
+        return #ok("Token operations are paused.");
+    };
+
+    // The token operations will resume again....
+    public shared ({ caller }) func token_operation_continue():async Result.Result<Text, Text>{
+        
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
+            return #err("Unauthorized: Only minting account or admin can call this function..");
+        };
+        
+        if (model.settings.token_operations_are_paused == true){
+            cancelTimer(model.settings.token_operations_timer_id);
+        };
+        model.settings.token_operations_are_paused:= false;  
+        return #ok("Token operations are resumed.");
+    };
+
+    public shared query func token_operation_status():async Text{
+        
+        if (model.settings.token_operations_are_paused == false){
+            return "Token operations are enabled.";
+        };
+
+        let currentTime:Int = Time.now();
+        if (currentTime > model.settings.token_operations_are_paused_expiration_time){
+            return "Token operations are enabled.";
+        };
+
+        return "Token operations are paused.";
+
+    };
 
     public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.TransactionTypes.TransferResult {
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
@@ -298,8 +366,10 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (Account.user_is_owner_or_admin(caller, token) == false) {
             return #err("Unauthorized: Only minting account or admin can call this function..");
         };
+        if (model.settings.autoTopupData.autoCyclesTopUpEnabled == true){
+            cancelTimer(model.settings.autoTopupData.autoCyclesTopUpTimerId);
+        };
 
-        cancelTimer(model.settings.autoTopupData.autoCyclesTopUpTimerId);
         model.settings.autoTopupData.autoCyclesTopUpEnabled := false;
         #ok("Automatic cycles topUp for archive canisters is now disabled");
     };
@@ -338,7 +408,9 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     };
 
     private func auto_topup_cycles_enable_internal<system>() {
-        cancelTimer(model.settings.autoTopupData.autoCyclesTopUpTimerId);
+        if ( model.settings.autoTopupData.autoCyclesTopUpEnabled == true){
+            cancelTimer(model.settings.autoTopupData.autoCyclesTopUpTimerId);
+        };
 
         let timerSeconds : Nat = model.settings.autoTopupData.autoCyclesTopUpMinutes * 60;
         model.settings.autoTopupData.autoCyclesTopUpTimerId := recurringTimer<system>(
@@ -390,4 +462,82 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         };
     };
 
+    system func inspect(
+     {
+       caller : Principal;
+       arg : Blob;
+       msg : {
+         #admin_add_admin_user : () -> Principal;
+        #admin_remove_admin_user : () -> Principal;
+        #all_canister_stats : () -> ();
+        #auto_topup_cycles_disable : () -> ();
+        #auto_topup_cycles_enable : () -> ?Nat;
+        #auto_topup_cycles_status : () -> ();
+        #burn : () -> T.TransactionTypes.BurnArgs;        
+        #cycles_balance : () -> ();
+        #deposit_cycles : () -> ();
+        #feewhitelisting_add_principal : () -> Principal;
+        #feewhitelisting_get_list : () -> ();
+        #feewhitelisting_remove_principal : () -> Principal;
+        #get_archive : () -> ();
+        #get_archive_stored_txs : () -> ();
+        #get_holders : () -> (?Nat, ?Nat);
+        #get_holders_count : () -> ();
+        #get_total_tx : () -> ();
+        #get_transaction : () -> T.TransactionTypes.TxIndex;
+        #get_transactions : () -> T.TransactionTypes.GetTransactionsRequest;
+        #icrc1_balance_of : () -> T.AccountTypes.Account;
+        #icrc1_decimals : () -> ();
+        #icrc1_fee : () -> ();
+        #icrc1_metadata : () -> ();
+        #icrc1_minting_account : () -> ();
+        #icrc1_name : () -> ();
+        #icrc1_supported_standards : () -> ();
+        #icrc1_symbol : () -> ();
+        #icrc1_total_supply : () -> ();
+        #icrc1_transfer : () -> T.TransactionTypes.TransferArgs;
+        #icrc2_allowance : () -> T.TransactionTypes.AllowanceArgs;
+        #icrc2_approve : () -> T.TransactionTypes.ApproveArgs;
+        #icrc2_transfer_from : () -> T.TransactionTypes.TransferFromArgs;
+        #list_admin_users : () -> ();
+        #min_burn_amount : () -> ();
+        #mint : () -> T.TransactionTypes.Mint;    
+        #real_fee : () -> (Principal, Principal);
+        #set_decimals : () -> Nat8;
+        #set_fee : () -> T.Balance;
+        #set_logo : () -> Text;
+        #set_min_burn_amount : () -> T.Balance;
+        #set_name : () -> Text;
+        #set_symbol : () -> Text;
+        #token_operation_continue : () -> ();
+        #token_operation_pause: () -> ?Nat;    
+        #token_operation_status : () -> ();        
+       }
+     }) : Bool {
+
+        if (model.settings.token_operations_are_paused){
+            let currentTime:Int = Time.now();
+            
+            if (currentTime <= model.settings.token_operations_are_paused_expiration_time){                
+                switch(msg){
+                    case ((#token_operation_continue _)){
+                        return true;
+                    };
+                    case ((#token_operation_status _)){
+                        return true;
+                    };
+                    case ((#token_operation_pause _)){
+                        return true;
+                    };
+                    case _ {                        
+                        return false;
+                    };                    
+                };                    
+                return false;            
+            };
+
+        };
+        return true;
+     };
+    
 };
