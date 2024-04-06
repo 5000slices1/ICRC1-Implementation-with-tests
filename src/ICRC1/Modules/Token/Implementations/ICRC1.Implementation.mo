@@ -59,8 +59,7 @@ module {
     public func icrc1_total_supply(token : TokenData) : Balance {
         var iter = Trie.iter(token.accounts.trie);
         var totalBalances : Nat = 0;
-
-        //TODO: Maybe use variables for this, and do not iterate all balances.
+        
         for ((k : Blob, v : T.CommonTypes.Balance) in iter) {
             totalBalances := totalBalances + v;
         };

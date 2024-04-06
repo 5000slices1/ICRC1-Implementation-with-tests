@@ -1,25 +1,38 @@
 import Prim "mo:prim";
-import Option "mo:base/Option";
 import Bool "mo:base/Bool";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
-import Debug "mo:base/Debug";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
-import Hash "mo:base/Hash";
 import Result "mo:base/Result";
 import Cycles "mo:base/ExperimentalCycles";
-import ExperimentalStableMemory "mo:base/ExperimentalStableMemory";
 import Principal "mo:base/Principal";
-import Itertools "mo:itertools/Iter";
-import StableTrieMap "mo:StableTrieMap";
-import U "../Modules/Token/Utils/Utils";
+import Buffer "mo:base/Buffer";
+import Error "mo:base/Error";
+import Option "mo:base/Option";
 import ArchiveTypes "../Types/Types.Archive";
 import TransactionTypes "../Types/Types.Transaction";
-import {ConstantTypes} = "../Types/Types.All";
+import { ConstantTypes } = "../Types/Types.All";
+import HashList "mo:memory-hashlist";
+import HashListType "mo:memory-hashlist/modules/libMemoryHashList";
+import HashTable "mo:memory-hashtable";
+import HashTableType "mo:memory-hashtable/modules/memoryHashTable";
+import MemoryRegion "mo:memory-region/MemoryRegion";
 
-shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTypes.ArchiveInterface = this{
+
+shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTypes.ArchiveInterface = this {
+
+    private let transactionsKey : Blob = HashList.Blobify.Text.to_blob("Transactions");
+    private let userTransactionsPreKey : Blob = HashList.Blobify.Text.to_blob("UserTransactions");
+
+    private let txIndexPreKey : Blob = HashList.Blobify.Text.to_blob("TxIndex");
+
+    stable var memoryStorageHashList = HashList.get_new_memory_storage(0);
+    stable var memoryStorageHashTable = HashTable.get_new_memory_storage(0);
+
+    private let hashList : HashListType.libMemoryHashList = HashList.MemoryHashList(memoryStorageHashList);
+    private let hashTable : HashTableType.MemoryHashTable = HashTable.MemoryHashTable(memoryStorageHashTable);
 
     private type GetTransactionsRequest = TransactionTypes.GetTransactionsRequest;
     private type TransactionRange = TransactionTypes.TransactionRange;
@@ -29,41 +42,37 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
         offset : Nat64;
         size : Nat;
     };
-    
-    stable var memory_pages : Nat64 = ExperimentalStableMemory.size();
-    stable var total_memory_used : Nat64 = 0;
-    stable var filled_buckets = 0;
-    stable var trailing_txs = 0;
-
-    stable let txStore = StableTrieMap.new<Nat, [MemoryBlock]>();
 
     stable var prevArchive : ArchiveTypes.ArchiveInterface = actor ("aaaaa-aa");
     stable var nextArchive : ArchiveTypes.ArchiveInterface = actor ("aaaaa-aa");
-    stable var first_tx : Nat = 0;
-    stable var last_tx : Nat = 0;
-    
-    //initialize with default principal. (Else this needs to be nullable)
+    stable var first_tx_index_number : Nat = 0;
+    stable var last_tx_index_number_plus_one : Nat = 0;
+    stable var at_least_one_transaction_was_added:Bool = false;
+
     stable var canisterId : Principal = Principal.fromText("aaaaa-aa");
     stable var wasInitialized = false;
 
-    //These fields are defined here (as stable),  and not inside 'Types.Constants.mo', because these values must not change for the canister.    
-    stable let KiB = 1024;
-    stable let GiB = KiB ** 3;
-    stable let MEMORY_PER_PAGE : Nat64 = Nat64.fromNat(64 * KiB);
-    stable let MIN_PAGES : Nat64 = 32; // 2MiB == 32 * 64KiB
-    stable let PAGES_TO_GROW : Nat64 = 2048; // 64MiB
-    stable let MAX_MEMORY = 26 * GiB;
-    stable let BUCKET_SIZE = 1000;
+    //These fields are defined here (as stable),  and not inside 'Types.Constants.mo', because these values must not change for the canister.
+    stable let MAX_MEMORY = 27917287424; // approx 26 GiB
+    stable let MAX_HEAP_SIZE = 2018634629; // approx 1.88 GiB
 
-    public shared ({ caller }) func init() : async Principal {
-                        
-        if (wasInitialized){
+    public shared ({ caller }) func init(first_tx_number : Nat) : async Principal {
+        
+        if (caller != ledger_canister_id) {
+            throw Error.reject("Unauthorized Access: Only the ledger canister can access this archive canister");
+        };
+
+        if (wasInitialized) {
             return canisterId;
         };
 
-        canisterId := Principal.fromActor(this);                
-        wasInitialized := true;         
-        canisterId;            
+        // Set first and last index number
+        first_tx_index_number := first_tx_number;
+        last_tx_index_number_plus_one := first_tx_number;
+
+        canisterId := Principal.fromActor(this);
+        wasInitialized := true;
+        canisterId;
     };
 
     public shared query func get_prev_archive() : async ArchiveTypes.ArchiveInterface {
@@ -75,14 +84,18 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     };
 
     public shared query func get_first_tx() : async Nat {
-        first_tx;
+        first_tx_index_number;
     };
 
     public shared query func get_last_tx() : async Nat {
-        last_tx;
+
+        if (at_least_one_transaction_was_added == false){
+            return 0;
+        };
+        
+        last_tx_index_number_plus_one - 1;
     };
 
-        
     public shared ({ caller }) func set_prev_archive(prev_archive : ArchiveTypes.ArchiveInterface) : async Result.Result<(), Text> {
 
         if (caller != ledger_canister_id) {
@@ -99,30 +112,8 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
         if (caller != ledger_canister_id) {
             return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
         };
-                
+
         nextArchive := next_archive;
-
-        #ok();
-    };
-
-    public shared ({ caller }) func set_first_tx(tx : Nat) : async Result.Result<(), Text> {
-
-        if (caller != ledger_canister_id) {
-            return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
-        };
-
-        first_tx := tx;
-
-        #ok();
-    };
-
-    public shared ({ caller }) func set_last_tx(tx : Nat) : async Result.Result<(), Text> {
-
-        if (caller != ledger_canister_id) {
-            return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
-        };
-
-        last_tx := tx;
 
         #ok();
     };
@@ -133,152 +124,139 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
             return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
         };
 
-        var txs_iter = txs.vals();
-
-        if (BucketIsNotEmpty()) {
-            let last_bucket = StableTrieMap.get(
-                txStore,
-                Nat.equal,
-                U.hash,
-                filled_buckets,
-            );
-
-            switch (last_bucket) {
-                case (?last_bucket) {
-                    let new_bucket = Iter.toArray(
-                        Itertools.take(
-                            Itertools.chain(
-                                last_bucket.vals(),
-                                Iter.map(txs.vals(), store_tx),
-                            ),
-                            BUCKET_SIZE,
-                        ),
-                    );
-
-                    if (new_bucket.size() == BUCKET_SIZE) {
-                        let offset = (BUCKET_SIZE - last_bucket.size()) : Nat;
-
-                        txs_iter := Itertools.fromArraySlice(txs, offset, txs.size());
-                    } else {
-                        txs_iter := Itertools.empty();
-                    };
-
-                    store_bucket(new_bucket);
-                };
-                case (_) {};
-            };
+        var arraySize = Array.size(txs);
+        if (arraySize == 0) {
+            return #err("At least one transaction is needed");
         };
 
-        for (chunk in Itertools.chunks(txs_iter, BUCKET_SIZE)) {
-            store_bucket(Array.map(chunk, store_tx));
+        let lastArrayIndex : Nat = arraySize - 1;
+        for (index in Iter.range(0, lastArrayIndex)) {            
+            add_transaction(txs[index]);
         };
 
-        #ok();
-    };
-
-    func total_txs() : Nat {
-        (filled_buckets * BUCKET_SIZE) + trailing_txs;
+        return #ok();
     };
 
     public shared query func total_transactions() : async Nat {
-        total_txs();
+        let indexOrNull : ?Nat = hashList.get_last_index(transactionsKey);
+        switch (indexOrNull) {
+            case (?index) {
+                index + 1;
+            };
+            case (_) {
+                return 0;
+            };
+        };
     };
 
     public shared query func get_transaction(tx_index : TxIndex) : async ?Transaction {
-        
-        //Absolute index ==> global transaction index
-        let tx_absolute_index = Nat.max(tx_index, first_tx);
 
-        //Relative index ==> internal index for this specific archive canister (We can have more than one archive canister) 
-        let tx_relative_index : Nat = tx_absolute_index - first_tx;
+        let indexResult = get_hashlist_index_for_txindex(tx_index);
+        if (indexResult.0 == false) {
+            return null;
+        };
 
-        let bucket_key = tx_relative_index / BUCKET_SIZE;
-        
-        let opt_bucket = StableTrieMap.get(
-            txStore,
-            Nat.equal,
-            U.hash,
-            bucket_key,
-        );
-
-        switch (opt_bucket) {
-            case (?bucket) {
-                let i = tx_relative_index % BUCKET_SIZE;
-                if (i < bucket.size()) {
-                    ?get_tx(bucket[tx_relative_index % BUCKET_SIZE]);
-                } else {
-                    null;
-                };
+        let resultBlobOrNull : ?Blob = hashList.get_at_index(transactionsKey, indexResult.1);
+        switch (resultBlobOrNull) {
+            case (?resultBlob) {
+                let result : ?Transaction = from_candid (resultBlob);
+                return result;
             };
             case (_) {
-                null;
+                return null;
             };
         };
+
     };
 
     public shared query func get_transactions(req : GetTransactionsRequest) : async TransactionRange {
+        
+        if (at_least_one_transaction_was_added == false){
+            return { transactions = []};
+        };
         let { start; length } = req;
-        var iter = Itertools.empty<MemoryBlock>();
-           
         let numberOfTransactionsToReturn = Nat.min(Nat.max(0, length), ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
-        let startTransactionNumber:Nat = Nat.max(start, first_tx);
-        let startTransactionRelativeIndex:Nat = startTransactionNumber - first_tx;
-        let start_bucket_index:Nat = startTransactionRelativeIndex / BUCKET_SIZE;        
-        let end_bucket_index:Nat = (startTransactionRelativeIndex + numberOfTransactionsToReturn) / BUCKET_SIZE;
-        var transactionsLeft = numberOfTransactionsToReturn;
-             
-        label _loop for (i in Itertools.range(start_bucket_index, end_bucket_index + 1)) {
-            let opt_bucket = StableTrieMap.get(
-                txStore,
-                Nat.equal,
-                U.hash,
-                i,
-            );
-           
-            switch (opt_bucket) {
-                case (?bucket) {
-                    if (i == start_bucket_index) {                        
-                        let indexInBucket:Nat = startTransactionRelativeIndex % BUCKET_SIZE;                         
-                        let numberOfIndizesToUse:Nat = Nat.min(bucket.size()-indexInBucket,numberOfTransactionsToReturn);                          
-                        iter := Itertools.fromArraySlice(bucket, indexInBucket, indexInBucket + numberOfIndizesToUse);   
-                        transactionsLeft:=transactionsLeft - numberOfIndizesToUse;                        
-                    } else if (i == end_bucket_index) {
-                        
-                        let numberOfIndizesToUse:Nat = Nat.min(bucket.size(),transactionsLeft);                             
-                        let bucket_iter = Itertools.fromArraySlice(bucket, 0, numberOfIndizesToUse);                        
-                        iter := Itertools.chain(iter, bucket_iter);
-                        transactionsLeft:=transactionsLeft - numberOfIndizesToUse;
-                    } else {                                                
-                        
-                        iter := Itertools.chain(iter, bucket.vals());
-                        transactionsLeft:=transactionsLeft - bucket.size();
+        let startTransactionNumber : Nat = Nat.max(start, first_tx_index_number);
+
+        let hashListIndexResult = get_hashlist_index_for_txindex(startTransactionNumber);
+        if (hashListIndexResult.0 == false) {
+            return { transactions = [] };
+        };
+        let firstHashListIndex = hashListIndexResult.1;
+        let lastHashListIndex : Nat = Nat.max(firstHashListIndex + numberOfTransactionsToReturn - 1, firstHashListIndex);
+
+        let resultBlobs : [?Blob] = hashList.get_at_range(transactionsKey, firstHashListIndex, lastHashListIndex);
+
+        let size : Nat = Array.size(resultBlobs);
+        if (size == 0) {
+            return { transactions = [] };
+        };
+
+        let buffer = Buffer.Buffer<Transaction>(size);
+
+        for (i in Iter.range(0, size -1)) {
+            let blobOrNull : ?Blob = resultBlobs[i];
+            switch (blobOrNull) {
+                case (?blobValue) {
+                    let transactionOrNull : ?Transaction = from_candid (blobValue);
+                    switch (transactionOrNull) {
+                        case (?transaction) {
+                            buffer.add(transaction);
+                        };
+                        case (null) {};
                     };
                 };
-                case (_) {                                
-                    break _loop };
+                case (_) {
+                    // do nothing
+                };
             };
         };
-        
-        let transactions = Iter.toArray(
-            Iter.map(                
-                Itertools.take(iter, numberOfTransactionsToReturn),
-                get_tx,
-            ),
-        );
-        
-        { transactions };
+
+        return {
+            transactions = Buffer.toArray(buffer);
+        };
     };
 
-    public shared query func remaining_capacity() : async Nat {
-        MAX_MEMORY - Nat64.toNat(total_memory_used);
+    public shared query func memory_is_full() : async Bool {
+        let remain_memory = remaining_memory_capacity_internal();
+
+        // remaining capacity lower than 1 kb then return true
+        if (remain_memory < 1024) {
+            return true;
+        };
+
+        let remain_heapSize = remaining_heap_capacity_internal();
+
+        // remaining capacity lower than 1 kb then return true
+        if (remain_heapSize < 1024) {
+            return true;
+        };
+
+        return false;
+    };
+
+    public shared query func remaining_memory_capacity() : async Nat {
+        remaining_memory_capacity_internal();
     };
 
     public shared query func max_memory() : async Nat {
         MAX_MEMORY;
     };
 
-    public shared query func total_used() : async Nat {
-        Nat64.toNat(total_memory_used);
+    public shared query func memory_total_used() : async Nat {
+        get_allocated_memory_size();
+    };
+
+    public shared query func remaining_heap_capacity() : async Nat {
+        remaining_heap_capacity_internal();
+    };
+
+    public shared query func heap_max() : async Nat {
+        MAX_HEAP_SIZE;
+    };
+
+    public shared query func heap_total_used() : async Nat {
+        get_heap_size();
     };
 
     /// Deposit cycles into this archive canister.
@@ -289,72 +267,142 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     };
 
     public shared query func cycles_available() : async Nat {
-      Cycles.balance();      
+        Cycles.balance();
     };
 
+    // Helper methods:
 
-    func to_blob(tx : Transaction) : Blob {
-        to_candid (tx);
+    private func add_transaction(transaction:Transaction) {
+
+        // Check if TxIndex already exist, and if so then just return        
+        if (at_least_one_transaction_was_added == true and transaction.index < last_tx_index_number_plus_one){            
+            return;
+        };
+        
+        let tx_blob : Blob = to_candid (transaction);
+
+        // Add the transaction into hashList
+        let result : (Nat, Nat64) = hashList.add(transactionsKey, tx_blob);
+        let hashListIndex:Nat = result.0;
+
+        at_least_one_transaction_was_added:=true;
+ 
+    
+        // Add transactionIndex as key into hashtable, with hashList index as value, 
+        // so that we can later find transaction by a given txIndex.
+        // (It is safe to use hashList index as value, because no Transaction will be deleted at any time.)
+        let txIndexAsBlob : Blob = HashTable.Blobify.Nat.to_blob(last_tx_index_number_plus_one);
+        let hashListIndexAsBlob : Blob = HashTable.Blobify.Nat.to_blob(hashListIndex);
+        let txKeyAsBlob = combine_blobs([txIndexPreKey, txIndexAsBlob]);
+        ignore hashTable.put(txKeyAsBlob, hashListIndexAsBlob);
+        last_tx_index_number_plus_one += 1;
+        
+        // Add from and to as key into hashtable, with hashList index as value.
+        // So that we can later get all transactions for a specific Principal
+        if (Option.isSome(transaction.transfer)){
+
+            switch(transaction.transfer){
+                case (?transfer){
+                    let fromKey = get_user_transaction_key(transfer.from.owner);
+                    let toKey = get_user_transaction_key(transfer.to.owner);
+                    ignore hashList.add(fromKey, hashListIndexAsBlob);
+                    ignore hashList.add(toKey, hashListIndexAsBlob);
+                };
+                case (_){
+                    // do nothing
+                }
+            }; 
+                        
+        } else if (Option.isSome(transaction.mint)){
+            switch(transaction.mint){
+                case (?mint){                    
+                    let toKey = get_user_transaction_key(mint.to.owner);                    
+                    ignore hashList.add(toKey, hashListIndexAsBlob);
+                };
+                case (_){
+                    // do nothing
+                }
+            }; 
+
+        } else if (Option.isSome(transaction.burn)) {
+            switch(transaction.burn){
+                case (?burn){                    
+                    let fromKey = get_user_transaction_key(burn.from.owner);                    
+                    ignore hashList.add(fromKey, hashListIndexAsBlob);
+                };
+                case (_){
+                    // do nothing
+                }
+            }; 
+        };
+                
     };
 
-    func from_blob(tx : Blob) : Transaction {
-        switch (from_candid (tx) : ?Transaction) {
-            case (?tx) tx;
-            case (_) Debug.trap("Could not decode tx blob");
+    private func get_user_transaction_key(principal:Principal): Blob{
+
+        combine_blobs([userTransactionsPreKey,Principal.toBlob(principal)]);
+            
+    };
+
+    private func get_hashlist_index_for_txindex(tx_index : TxIndex) : (Bool /*found*/, Nat /*index*/) {
+
+        let txIndexAsBlob : Blob = HashTable.Blobify.Nat.to_blob(tx_index);
+        let txKeyAsBlob = combine_blobs([txIndexPreKey, txIndexAsBlob]);
+        let indexAsBlobOrNull : ?Blob = hashTable.get(txKeyAsBlob);
+        switch (indexAsBlobOrNull) {
+            case (?hashlistIndex) {
+                let index : Nat = HashTable.Blobify.Nat.from_blob(hashlistIndex);
+                return (true, index);
+            };
+            case (_) {
+                return (false, 0);
+            };
         };
     };
 
-    func store_tx(tx : Transaction) : MemoryBlock {
-        let blob = to_blob(tx);
-
-        if ((memory_pages * MEMORY_PER_PAGE) - total_memory_used < (MIN_PAGES * MEMORY_PER_PAGE)) {
-            ignore ExperimentalStableMemory.grow(PAGES_TO_GROW);
-            memory_pages += PAGES_TO_GROW;
+    private func remaining_memory_capacity_internal() : Nat {
+        let allocatedSize = get_allocated_memory_size();
+        if (allocatedSize >= MAX_MEMORY){
+            return 0;
         };
 
-        let offset = total_memory_used;
+        MAX_MEMORY - get_allocated_memory_size();
+    };
 
-        ExperimentalStableMemory.storeBlob(
-            offset,
-            blob,
-        );
+    private func remaining_heap_capacity_internal() : Nat {
+        let heapSize = get_heap_size();
+        if (heapSize >= MAX_HEAP_SIZE){
+            return 0;
+        };
+        MAX_HEAP_SIZE - get_heap_size();
+    };
 
-        let mem_block = {
-            offset;
-            size = blob.size();
+    private func get_allocated_memory_size() : Nat {
+        let memInfoHashList = MemoryRegion.memoryInfo(memoryStorageHashList.memory_region);
+        let memInfoHashTable = MemoryRegion.memoryInfo(memoryStorageHashTable.memory_region);
+        let totalMemoryUsed = memInfoHashList.size + memInfoHashTable.size;
+        return totalMemoryUsed;
+    };
+
+    private func get_heap_size() : Nat {
+        Prim.rts_heap_size();
+    };
+
+    private func combine_blobs(blobs : [Blob]) : Blob {
+
+        var neededSize = 0;
+        for (blob in Iter.fromArray<Blob>(blobs)) {
+            neededSize += blob.size();
         };
 
-        total_memory_used += Nat64.fromNat(blob.size());
-        mem_block;
-    };
+        let buffer = Buffer.Buffer<Nat8>(neededSize);
 
-    func get_tx({ offset; size } : MemoryBlock) : Transaction {
-        let blob = ExperimentalStableMemory.loadBlob(offset, size);
-
-        from_blob(blob);
-    };
-
-    func store_bucket(bucket : [MemoryBlock]) {
-
-        StableTrieMap.put(
-            txStore,
-            Nat.equal,
-            U.hash,
-            filled_buckets,
-            bucket,
-        );
-
-        if (bucket.size() == BUCKET_SIZE) {
-            filled_buckets += 1;
-            trailing_txs := 0;
-        } else {
-            trailing_txs := bucket.size();
+        for (blob in Iter.fromArray<Blob>(blobs)) {
+            buffer.append(Buffer.fromArray<Nat8>(Blob.toArray(blob)));
         };
+
+        let array = Buffer.toArray(buffer);
+        return Blob.fromArray(array);
+
     };
-
-
-    //Helper functions:
-    private func BucketIsNotEmpty():Bool{
-        trailing_txs > 0;
-    }
 };

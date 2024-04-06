@@ -239,7 +239,11 @@ module {
                     return #err(#GenericError({ error_code = 0; message = "Minting not allowed" }));
                 };
 
-                let newAmount : Nat = Nat.max(token.minted_tokens - token.burned_tokens, 0);
+                var newAmount:Nat = 0;
+                if (token.burned_tokens < token.minted_tokens){
+                    newAmount := token.minted_tokens - token.burned_tokens;
+                };
+                
                 if (newAmount > token.max_supply) {
 
                     return #err(#GenericError({ error_code = 0; message = "Total supply would be exceeded. Minting rejected." }));

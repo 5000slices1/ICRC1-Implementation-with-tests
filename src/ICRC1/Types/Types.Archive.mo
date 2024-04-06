@@ -2,6 +2,8 @@ import Result "mo:base/Result";
 import Principal "mo:base/Principal";
 import TransactionTypes "Types.Transaction";
 import List "mo:base/List";
+import TransactionType "Types.Transaction";
+import AccountTypes "Types.Account";
 
 module {    
   
@@ -19,7 +21,7 @@ module {
     public type ArchiveInterface = actor {
 
         //Initialize method
-        init: shared () -> async Principal;
+        init: shared (first_tx_number:Nat) -> async Principal;
 
         /// Appends the given transactions to the archive.
         /// > Only the Ledger canister is allowed to call this method
@@ -34,14 +36,6 @@ module {
         /// Returns the transactions in the given range
         get_transactions : shared query (GetTransactionsRequest) -> async TransactionRange;
 
-        /// Returns the number of bytes left in the archive before it is full
-        /// > The capacity of the archive canister is 32GB
-        remaining_capacity : shared query () -> async Nat;
-
-        total_used : shared query () -> async Nat;
-
-        max_memory : shared query () -> async Nat;
-
         get_first_tx : shared query () -> async Nat;
 
         get_last_tx : shared query () -> async Nat;
@@ -49,14 +43,18 @@ module {
         get_prev_archive : shared query () -> async ArchiveInterface;
 
         get_next_archive : shared query () -> async ArchiveInterface;
-
-        set_first_tx : shared (Nat) -> async Result.Result<(), Text>;
-
-        set_last_tx : shared (Nat) -> async Result.Result<(), Text>;
-
+     
         set_prev_archive : shared (ArchiveInterface) -> async Result.Result<(), Text>;
 
         set_next_archive : shared (ArchiveInterface) -> async Result.Result<(), Text>;
+
+        memory_is_full : shared query () -> async Bool;
+        remaining_memory_capacity : shared query () -> async Nat;
+        max_memory : shared query () -> async Nat;
+        memory_total_used : shared query () -> async Nat;
+        remaining_heap_capacity : shared query () -> async Nat;
+        heap_max : shared query () -> async Nat;
+        heap_total_used : shared query () -> async Nat;
 
         cycles_available:shared query() -> async Nat;
 
@@ -72,4 +70,64 @@ module {
         /// The number of transactions stored in the archive
         var stored_txs : Nat;
     };
+
+    public type DbTransactionMetadata = {
+        
+        // index for the corresponding hashlist entry
+        index:Nat;
+
+        // Transaction index
+        txIndex:Nat;
+
+        // memory location
+        memoryLocation:Nat64;
+    };
+
+    // public type DbTransactionType = {
+    //     #dBMint;
+    //     #dbBurn;
+    //     #dbTransfer
+    // };
+
+    // We need this structure because if we want to add .......
+    public type DbTransaction = {
+        kind:Text;
+        transactionType:Nat8;
+        from:DbAccount;
+        to:DbAccount;
+        amount:DbBalance;
+        fee:DbBalance;
+        memo:DbMemo;
+        created_at_time:DbCreatedAtTime;
+        index:TransactionType.TxIndex;
+        timeStamp:TransactionType.Timestamp;
+    };
+
+    public type DbMemo = {
+        hasValue:Bool;
+        memo:Blob;
+    };
+
+    public type DbCreatedAtTime = {
+          hasValue:Bool;
+          created_at_time:Nat64;
+    };
+    
+    public type DbTransactionType = {
+        #unknown;
+        #mint;
+        #burn;
+        #transfer;    
+    };
+
+    public type DbAccount = {
+        hasValue:Bool;
+        account:AccountTypes.Account;
+    };
+
+    public type DbBalance = {
+        hasValue:Bool;
+        amount:Nat;
+    };
+
 };
