@@ -225,9 +225,8 @@ module {
         };
     };
 
-    /// Updates the balance of an account
-    /// Set to private, so that it can only be called from within this module
-    private func update_balance(
+    /// Updates the balance of an account    
+    public func update_balance(
         accounts : AccountBalances,
         encoded_account : EncodedAccount,
         update : (Balance) -> Balance,

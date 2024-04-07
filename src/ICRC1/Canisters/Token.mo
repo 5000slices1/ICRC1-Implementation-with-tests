@@ -13,6 +13,10 @@ import Result "mo:base/Result";
 import Bool "mo:base/Bool";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
+import Nat8 "mo:base/Nat8";
+import Float "mo:base/Float";
+import Trie "mo:base/Trie";
+import Blob "mo:base/Blob";
 import T "../Types/Types.All";
 import Constants "../Types/Types.Constants";
 import Account "../Modules/Token/Account/Account";
@@ -20,8 +24,7 @@ import Initializer "../Modules/Token/Initializer/Initializer";
 import Model "../Types/Types.Model";
 import Converters = "../Modules/Converters/Converters";
 import MemoryController "../Modules/Token/MemoryController/MemoryController";
-
-
+import Utils "../Modules/Token/Utils/Utils";
 
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
@@ -31,7 +34,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     //Convert argument, because 'init_args' can now be null, in case of upgrade scenarios. ('dfx deploy')
     let init_arguments : ?T.TokenTypes.InitArgs = Converters.ConvertTokenInitArgs(init_args, model, _owner);
 
-    private stable let token : T.TokenTypes.TokenData = switch (init_arguments) {
+    private stable var token : T.TokenTypes.TokenData = switch (init_arguments) {
         case null {
             Debug.trap("Initialize token with no arguments not allowed.");
         };
@@ -171,7 +174,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         await* SlicesToken.all_canister_stats(hidePrincipals, model.settings.tokenCanisterId, balance, model.settings.archive_canisterIds);
     };
 
-    /// Show the token holders
+    /// Get token holders count
     public shared query func get_holders_count() : async Nat {
         SlicesToken.get_holders_count(token);
     };
@@ -183,72 +186,208 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         SlicesToken.get_holders(token, index, count);
     };
 
+    public shared ({ caller }) func tokens_amount_upscale<system>(numberOfDecimalPlaces : Nat8) : async Result.Result<Text, Text> {
 
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
+            return #err("Unauthorized: Only minting account or admin can call this function..");
+        };
+
+        if (numberOfDecimalPlaces < 1) {
+            return #err("The minimum number for scaling is 1");
+        };
+
+        let current_total_supply : Nat = ICRC1.icrc1_total_supply(token);
+        let current_max_supply : Nat = token.max_supply;
+
+        let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
+        let floatDecimals : Float = Float.fromInt(Nat8.toNat(token.decimals));
+
+        let new_total_supply = current_total_supply * factor;
+        let new_max_supply = current_max_supply * factor;
+
+        var request_Should_be_used = true;
+        switch (model.settings.tokens_upscaling_mode) {
+            case (#requested(prevPrincipal, time, scale_places)) {
+                if (prevPrincipal == caller and scale_places == numberOfDecimalPlaces) {
+                    // check if within time frame
+                    let timeNow : Int = Time.now();
+                    let timeWindowInSeconds = 5 * 60 * 1000_000_000; // 5 minutes as nano seconds
+                    let expirationTime : Int = timeNow + timeWindowInSeconds;
+                    if (timeNow <= expirationTime) {
+                        request_Should_be_used := false;
+                    };
+                };
+            };
+            case (#progressing(decimalPlaces)) {
+                return #err("Upscaling is still on progress...");
+            };
+            case (_) {
+
+            };
+        };
+
+        if (request_Should_be_used == true) {
+
+            model.settings.tokens_upscaling_mode := #requested(caller, Time.now(), numberOfDecimalPlaces);
+
+            let returnText : Text = "Warning, you want to upscale the token amount.\n" #
+            "- Current status:\n" #
+            "  Max supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(current_max_supply) / (10 ** floatDecimals)))) # " tokens.\n" #
+            "  Total circ. supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(current_total_supply) / (10 ** floatDecimals)))) # " tokens.\n\n" #
+
+            "- After upscaling:\n" #
+            "  Max supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(new_max_supply) / (10 ** floatDecimals)))) # " tokens.\n" #
+            "  Total circ. supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(new_total_supply) / (10 ** floatDecimals)))) # " tokens.\n\n" #
+
+            "If this is correct and you still want to upscale the token amount, then please call this function again with the next 5 minutes.";
+
+            return #ok(returnText);
+        };
+
+        // First set the token operations into pause-mode (with maximum wait-time set to 24 hours)
+        let dayAsMinutes : Nat = 60 * 24;
+        token_operations_set_to_pause_internal<system>(dayAsMinutes);
+
+        model.settings.tokens_upscaling_mode := #progressing(numberOfDecimalPlaces);
+
+        // we will first wait 2 minutes, to make sure that no other message processing is taking place.
+        let waitSecondsBeforeStartingTheScaling : Nat = 2 * 60;
+
+        model.settings.tokens_upscaling_timer_id := setTimer<system>(
+            #seconds waitSecondsBeforeStartingTheScaling,
+            func<system>() : async () {
+                await up_or_down_scale_token_now_internal(numberOfDecimalPlaces, true);
+            },
+        );
+
+        return #ok("Ok. Upscaling token is on progress...");
+    };
+
+    public shared ({ caller }) func tokens_amount_downscale<system>(numberOfDecimalPlaces : Nat8) : async Result.Result<Text, Text> {
+
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
+            return #err("Unauthorized: Only minting account or admin can call this function..");
+        };
+
+        if (numberOfDecimalPlaces < 1) {
+            return #err("The minimum number for scaling is 1");
+        };
+
+        let current_total_supply : Nat = ICRC1.icrc1_total_supply(token);
+        let current_max_supply : Nat = token.max_supply;
+
+        let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
+        let floatDecimals : Float = Float.fromInt(Nat8.toNat(token.decimals));
+
+        let new_total_supply = current_total_supply / factor;
+        let new_max_supply = current_max_supply / factor;
+
+        var request_Should_be_used = true;
+        switch (model.settings.tokens_downscaling_mode) {
+            case (#requested(prevPrincipal, time, scale_places)) {
+                if (prevPrincipal == caller and scale_places == numberOfDecimalPlaces) {
+                    // check if within time frame
+                    let timeNow : Int = Time.now();
+                    let timeWindowInSeconds = 5 * 60 * 1000_000_000; // 5 minutes as nano seconds
+                    let expirationTime : Int = timeNow + timeWindowInSeconds;
+                    if (timeNow <= expirationTime) {
+                        request_Should_be_used := false;
+                    };
+                };
+            };
+            case (#progressing(decimalPlaces)) {
+                return #err("Upscaling is still on progress...");
+            };
+            case (_) {
+
+            };
+        };
+
+        if (request_Should_be_used == true) {
+
+            model.settings.tokens_downscaling_mode := #requested(caller, Time.now(), numberOfDecimalPlaces);
+
+            let returnText : Text = "Warning, you want to downscale the token amount.\n" #
+            "- Current status:\n" #
+            "  Max supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(current_max_supply) / (10 ** floatDecimals)))) # " tokens.\n" #
+            "  Total circ. supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(current_total_supply) / (10 ** floatDecimals)))) # " tokens.\n\n" #
+
+            "- After upscaling:\n" #
+            "  Max supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(new_max_supply) / (10 ** floatDecimals)))) # " tokens.\n" #
+            "  Total circ. supply: " #debug_show (Int.abs(Float.toInt(Float.fromInt(new_total_supply) / (10 ** floatDecimals)))) # " tokens.\n\n" #
+
+            "If this is correct and you still want to downscale the token amount, then please call this function again with the next 5 minutes.";
+
+            return #ok(returnText);
+        };
+
+        // First set the token operations into pause-mode (with maximum wait-time set to 24 hours)
+        let dayAsMinutes : Nat = 60 * 24;
+        token_operations_set_to_pause_internal<system>(dayAsMinutes);
+
+        model.settings.tokens_downscaling_mode := #progressing(numberOfDecimalPlaces);
+
+        // we will first wait 2 minutes, to make sure that no other message processing is taking place.
+        let waitSecondsBeforeStartingTheScaling : Nat = 2 * 60;
+
+        model.settings.tokens_downscaling_timer_id := setTimer<system>(
+            #seconds waitSecondsBeforeStartingTheScaling,
+            func<system>() : async () {
+                await up_or_down_scale_token_now_internal(numberOfDecimalPlaces, false);
+            },
+        );
+
+        return #ok("Ok. Downscaling token is on progress...");
+    };
     // -------------------------------------------------------------------------------------------
 
     // ------------------------------------------------------------------------------------------
     // Additional token functions
 
-
     /// Pause token operations. This is useful if we do some time consuming operations like update/upgrade or token scaling...
-    public shared ({ caller }) func token_operation_pause<system>(minutes : ?Nat):async Result.Result<Text, Text>{        
+    public shared ({ caller }) func token_operation_pause<system>(minutes : Nat) : async Result.Result<Text, Text> {
         if (Account.user_is_owner_or_admin(caller, token) == false) {
             return #err("Unauthorized: Only minting account or admin can call this function..");
         };
 
-        let minutesToUse : Nat = switch (minutes) {
-            case (?minutes) minutes;
-            case (null) 15; // 15 minutes as default
-        };
-
-        if (model.settings.token_operations_are_paused == true){
-            cancelTimer(model.settings.token_operations_timer_id);
-        };
-        
-        let timerSeconds = minutesToUse * 60;
-        let nanoSecondsToUse:Nat = timerSeconds * 1000_000_000;
-        let expirationTime:Int = Time.now() + nanoSecondsToUse;
-        
-        model.settings.token_operations_are_paused_expiration_time:= expirationTime;
-        model.settings.token_operations_are_paused:= true;       
-                
-        model.settings.token_operations_timer_id:= setTimer<system>(
-            #seconds timerSeconds,
-            func() : async () {
-                ignore await token_operation_continue<system>();
-            },
-        );
-
-
+        token_operations_set_to_pause_internal<system>(minutes);
         return #ok("Token operations are paused.");
     };
 
     // The token operations will resume again....
-    public shared ({ caller }) func token_operation_continue():async Result.Result<Text, Text>{
-        
+    public shared ({ caller }) func token_operation_continue() : async Result.Result<Text, Text> {
+
         if (Account.user_is_owner_or_admin(caller, token) == false) {
             return #err("Unauthorized: Only minting account or admin can call this function..");
         };
-        
-        if (model.settings.token_operations_are_paused == true){
+
+        if (model.settings.token_operations_timer_id > 0 or model.settings.token_operations_are_paused == true) {
             cancelTimer(model.settings.token_operations_timer_id);
         };
-        model.settings.token_operations_are_paused:= false;  
+        model.settings.token_operations_are_paused := false;
         return #ok("Token operations are resumed.");
     };
 
-    public shared query func token_operation_status():async Text{
-        
-        if (model.settings.token_operations_are_paused == false){
+    public shared query func token_operation_status() : async Text {
+
+        if (model.settings.token_operations_are_paused == false) {
             return "Token operations are enabled.";
         };
 
-        let currentTime:Int = Time.now();
-        if (currentTime > model.settings.token_operations_are_paused_expiration_time){
+        let currentTime : Int = Time.now();
+        if (currentTime > model.settings.token_operations_are_paused_expiration_time) {
             return "Token operations are enabled.";
         };
 
-        return "Token operations are paused.";
+        let nanoSecondsToWait : Int = model.settings.token_operations_are_paused_expiration_time - currentTime;
+
+        let totalSeconds = nanoSecondsToWait / 1000_000_000;
+        let secondsToWait : Int = totalSeconds % 60;
+        let minutesToWait : Int = ((totalSeconds -secondsToWait) / 60);
+        let hoursToWait : Int = ((totalSeconds -secondsToWait - minutesToWait * 60) / (60 * 60));
+
+        return "Token operations are paused until Hours: " #debug_show (Int.abs(hoursToWait)) # " / minutes: " #
+        debug_show (Int.abs(minutesToWait)) # " / seconds: " #debug_show (Int.abs(secondsToWait));
 
     };
 
@@ -312,6 +451,14 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         ExtendedToken.min_burn_amount(token);
     };
 
+    public shared query func get_burned_amount() : async Nat {
+        token.burned_tokens;
+    };
+
+    public shared query func get_max_supply() : async Nat {
+        token.max_supply;
+    };
+
     public shared query func get_archive() : async T.ArchiveTypes.ArchiveInterface {
         ExtendedToken.get_archive(token);
     };
@@ -366,7 +513,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (Account.user_is_owner_or_admin(caller, token) == false) {
             return #err("Unauthorized: Only minting account or admin can call this function..");
         };
-        if (model.settings.autoTopupData.autoCyclesTopUpEnabled == true){
+        if (model.settings.autoTopupData.autoCyclesTopUpTimerId > 0 or model.settings.autoTopupData.autoCyclesTopUpEnabled == true) {
             cancelTimer(model.settings.autoTopupData.autoCyclesTopUpTimerId);
         };
 
@@ -403,12 +550,100 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // ------------------------------------------------------------------------------------------
     // Helper functions
 
+    private func token_operations_set_to_pause_internal<system>(minutes : Nat) {
+        let minutesToUse : Nat = minutes;
+
+        if (model.settings.token_operations_timer_id > 0 or model.settings.token_operations_are_paused == true) {
+            cancelTimer(model.settings.token_operations_timer_id);
+        };
+
+        let timerSeconds = minutesToUse * 60;
+        let nanoSecondsToUse : Nat = timerSeconds * 1000_000_000;
+        let expirationTime : Int = Time.now() + nanoSecondsToUse;
+
+        model.settings.token_operations_are_paused_expiration_time := expirationTime;
+        model.settings.token_operations_are_paused := true;
+
+        model.settings.token_operations_timer_id := setTimer<system>(
+            #seconds timerSeconds,
+            func() : async () {
+                ignore await token_operation_continue<system>();
+            },
+        );
+    };
+
+    private func up_or_down_scale_token_now_internal(numberOfDecimalPlaces : Nat8, isUpscaling : Bool) : async () {
+
+        // First cancel the timer
+        if (isUpscaling == true) {
+            cancelTimer(model.settings.tokens_upscaling_timer_id);
+        } else {
+            cancelTimer(model.settings.tokens_downscaling_timer_id);
+        };
+        model.settings.token_operations_are_paused := false;
+
+        // Now do the upscaling
+        let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
+        
+
+        if (isUpscaling == true) {
+            token.max_supply *= factor;
+            token.minted_tokens *=  factor;
+            token.burned_tokens *= factor;
+
+        } else {
+            token.max_supply /=  factor;
+            token.minted_tokens /= factor;
+            token.burned_tokens /= factor;
+        };
+
+        
+        var iter = Trie.iter(token.accounts.trie);
+        var encodedAccounts : List.List<Blob> = List.nil<Blob>();
+        for ((encodedAccount : Blob, balance : T.CommonTypes.Balance) in iter) {
+            encodedAccounts := List.push<Blob>(encodedAccount, encodedAccounts);
+        };
+
+        for (encodedAccount : Blob in List.toIter<Blob>(encodedAccounts)) {
+            //Update the balance in accounts
+
+            if (isUpscaling == true) {
+                Utils.update_balance(
+                    token.accounts,
+                    encodedAccount,
+                    func(balance) {
+                        balance * factor;
+                    },
+                );
+
+            } else {
+                Utils.update_balance(
+                    token.accounts,
+                    encodedAccount,
+                    func(balance) {
+                        balance / factor;
+                    },
+                );
+
+            };
+
+        };
+       
+        // Set upscale mode to normal again
+        if (isUpscaling == true) {
+            model.settings.tokens_upscaling_mode := #idle;
+        } else {
+            model.settings.tokens_downscaling_mode := #idle;
+        };
+
+    };
+
     private func cyclesAvailable() : Nat {
         Cycles.balance();
     };
 
     private func auto_topup_cycles_enable_internal<system>() {
-        if ( model.settings.autoTopupData.autoCyclesTopUpEnabled == true){
+        if (model.settings.autoTopupData.autoCyclesTopUpTimerId > 0 or model.settings.autoTopupData.autoCyclesTopUpEnabled == true) {
             cancelTimer(model.settings.autoTopupData.autoCyclesTopUpTimerId);
         };
 
@@ -462,82 +697,83 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         };
     };
 
-    system func inspect(
-     {
-       caller : Principal;
-       arg : Blob;
-       msg : {
-         #admin_add_admin_user : () -> Principal;
-        #admin_remove_admin_user : () -> Principal;
-        #all_canister_stats : () -> ();
-        #auto_topup_cycles_disable : () -> ();
-        #auto_topup_cycles_enable : () -> ?Nat;
-        #auto_topup_cycles_status : () -> ();
-        #burn : () -> T.TransactionTypes.BurnArgs;        
-        #cycles_balance : () -> ();
-        #deposit_cycles : () -> ();
-        #feewhitelisting_add_principal : () -> Principal;
-        #feewhitelisting_get_list : () -> ();
-        #feewhitelisting_remove_principal : () -> Principal;
-        #get_archive : () -> ();
-        #get_archive_stored_txs : () -> ();
-        #get_holders : () -> (?Nat, ?Nat);
-        #get_holders_count : () -> ();
-        #get_total_tx : () -> ();
-        #get_transaction : () -> T.TransactionTypes.TxIndex;
-        #get_transactions : () -> T.TransactionTypes.GetTransactionsRequest;
-        #icrc1_balance_of : () -> T.AccountTypes.Account;
-        #icrc1_decimals : () -> ();
-        #icrc1_fee : () -> ();
-        #icrc1_metadata : () -> ();
-        #icrc1_minting_account : () -> ();
-        #icrc1_name : () -> ();
-        #icrc1_supported_standards : () -> ();
-        #icrc1_symbol : () -> ();
-        #icrc1_total_supply : () -> ();
-        #icrc1_transfer : () -> T.TransactionTypes.TransferArgs;
-        #icrc2_allowance : () -> T.TransactionTypes.AllowanceArgs;
-        #icrc2_approve : () -> T.TransactionTypes.ApproveArgs;
-        #icrc2_transfer_from : () -> T.TransactionTypes.TransferFromArgs;
-        #list_admin_users : () -> ();
-        #min_burn_amount : () -> ();
-        #mint : () -> T.TransactionTypes.Mint;    
-        #real_fee : () -> (Principal, Principal);
-        #set_decimals : () -> Nat8;
-        #set_fee : () -> T.Balance;
-        #set_logo : () -> Text;
-        #set_min_burn_amount : () -> T.Balance;
-        #set_name : () -> Text;
-        #set_symbol : () -> Text;
-        #token_operation_continue : () -> ();
-        #token_operation_pause: () -> ?Nat;    
-        #token_operation_status : () -> ();        
-       }
-     }) : Bool {
+    system func inspect({
+        caller : Principal;
+        arg : Blob;
+        msg : {
+            #admin_add_admin_user : () -> Any;
+            #admin_remove_admin_user : () -> Any;
+            #all_canister_stats : () -> ();
+            #auto_topup_cycles_disable : () -> ();
+            #auto_topup_cycles_enable : () -> Any;
+            #auto_topup_cycles_status : () -> ();
+            #burn : () -> Any;
+            #cycles_balance : () -> ();
+            #deposit_cycles : () -> ();
+            #feewhitelisting_add_principal : () -> Any;
+            #feewhitelisting_get_list : () -> ();
+            #feewhitelisting_remove_principal : () -> Any;
+            #get_archive : () -> ();
+            #get_archive_stored_txs : () -> ();
+            #get_holders : () -> (Any, Any);
+            #get_holders_count : () -> ();
+            #get_total_tx : () -> ();
+            #get_transaction : () -> Any;
+            #get_transactions : () -> Any;
+            #icrc1_balance_of : () -> Any;
+            #icrc1_decimals : () -> ();
+            #icrc1_fee : () -> ();
+            #icrc1_metadata : () -> ();
+            #icrc1_minting_account : () -> ();
+            #icrc1_name : () -> ();
+            #icrc1_supported_standards : () -> ();
+            #icrc1_symbol : () -> ();
+            #icrc1_total_supply : () -> ();
+            #icrc1_transfer : () -> Any;
+            #icrc2_allowance : () -> Any;
+            #icrc2_approve : () -> Any;
+            #icrc2_transfer_from : () -> Any;
+            #list_admin_users : () -> ();
+            #min_burn_amount : () -> ();
+            #mint : () -> Any;
+            #real_fee : () -> (Any, Any);
+            #set_decimals : () -> Any;
+            #set_fee : () -> Any;
+            #set_logo : () -> Any;
+            #set_min_burn_amount : () -> Any;
+            #set_name : () -> Any;
+            #set_symbol : () -> Any;
+            #token_operation_continue : () -> ();
+            #token_operation_pause : () -> Any;
+            #token_operation_status : () -> ();
+            #tokens_amount_upscale : () -> Any;
+            #tokens_amount_downscale : () -> Any;
+            #get_burned_amount : () -> ();
+            #get_max_supply : () -> ();
+        };
+    }) : Bool {
 
-        if (model.settings.token_operations_are_paused){
-            let currentTime:Int = Time.now();
+        if (model.settings.token_operations_are_paused) {
             
-            if (currentTime <= model.settings.token_operations_are_paused_expiration_time){                
-                switch(msg){
-                    case ((#token_operation_continue _)){
+            if (Account.user_is_owner_or_admin(caller, token) == false and caller != Principal.fromActor(this)) {
+                switch (msg) {
+                    case ((#token_operation_continue _)) {
                         return true;
                     };
-                    case ((#token_operation_status _)){
+                    case ((#token_operation_status _)) {
                         return true;
                     };
-                    case ((#token_operation_pause _)){
+                    case ((#token_operation_pause _)) {
                         return true;
                     };
-                    case _ {                        
+                    case _ {
                         return false;
-                    };                    
-                };                    
-                return false;            
+                    };
+                };
+                return false;
             };
-
         };
         return true;
-     };
-    
+    };
+
 };

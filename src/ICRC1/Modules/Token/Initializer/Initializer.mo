@@ -48,7 +48,16 @@ module {
                   
                 var token_operations_are_paused:Bool = false;                
                 var token_operations_are_paused_expiration_time:Int = 0;
+
+                var tokens_operation_mode:Model.TokenMainOperationsMode = #normal;
+                var tokens_upscaling_mode:Model.TokenScalingOperationsMode = #idle;
+                var tokens_downscaling_mode:Model.TokenScalingOperationsMode = #idle;
+                var tokens_data_restore_mode:Model.TokenSubOperationsMode = #idle;
+
                 var token_operations_timer_id:Nat = 0;
+                var tokens_upscaling_timer_id:Nat = 0;
+                var tokens_downscaling_timer_id:Nat = 0;
+                var tokens_restore_data_timer_id:Nat = 0;
             };
 
             databaseStorages : Model.DatabaseStorages = {
