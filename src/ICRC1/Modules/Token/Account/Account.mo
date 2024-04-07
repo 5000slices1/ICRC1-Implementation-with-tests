@@ -127,7 +127,7 @@ module {
     };
 
     public func list_admin_users(token : TokenData) : [Principal] {
-        return List.toArray<Principal>(token.tokenAdmins);
+         List.toArray<Principal>(token.tokenAdmins);
     };
 
     /// Returns the default subaccount for cases where a user does
