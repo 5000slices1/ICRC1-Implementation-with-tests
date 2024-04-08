@@ -5,6 +5,10 @@ import Random "mo:base/Random";
 import Option "mo:base/Option";
 import Float "mo:base/Float";
 import Int "mo:base/Int";
+import Array "mo:base/Array";
+import Blob "mo:base/Blob";
+import Iter "mo:base/Iter";
+import Debug "mo:base/Debug";
 import ActorSpec "../utils/ActorSpec";
 import ICRC1 "../../../src/ICRC1/Modules/Token/Implementations/ICRC1.Implementation";
 import T "../../../src/ICRC1/Types/Types.All";
@@ -36,6 +40,31 @@ module {
         let float_with_decimals = float * (10 ** Float.fromInt(Nat8.toNat(token.decimals)));
 
         Int.abs(Float.toInt(float_with_decimals));
+    };
+
+    public func create_test_principals(numberOfPrincipals:Nat):[Principal]{
+
+        let principals = Array.tabulate<Principal>(
+        numberOfPrincipals,
+        func(i) {
+            Principal.fromBlob(Blob.fromArray([Nat8.fromNat(i)]));
+        },
+        );
+        return principals;
+    };
+
+        public func create_test_accounts(numberOfAccounts:Nat):[Account]{
+            let principals = Array.tabulate<Account>(
+            numberOfAccounts,
+            func(i) {
+
+                {
+                    owner = Principal.fromBlob(Blob.fromArray([Nat8.fromNat(i)]));
+                    subaccount = null;
+                };
+            },
+        );
+        return principals;
     };
 
     public func test() : async ActorSpec.Group {
@@ -82,6 +111,8 @@ module {
         };
 
         let defaultModel:Model.Model = Initializer.init_model();
+
+         
 
         return describe(
             "Slices Token Implementation Tests",
@@ -325,6 +356,157 @@ module {
                                 ]);
                             },
                         ),
+                    ],
+                ),
+                 describe(
+                    "token up and down scaling",
+                    [
+                        it(
+                            "Upscale token x100 test",
+                            do {
+                                let args = {default_token_args with max_supply = 1_000_000_000_000_000 * (10 ** 8);};
+                                let token = Initializer.tokenInit(args);
+                                
+                                let testAccounts = create_test_accounts(100);
+                            
+                                // mint tokens for the test-accounts
+                                for(i in Iter.range(0,99)){
+                                    let mint_args = {
+                                        to = testAccounts[i];
+                                        amount = (i+100) * (10 ** Nat8.toNat(token.decimals));
+                                        memo = null;
+                                        created_at_time = null;
+                                    };
+
+                                    ignore await* ExtendedToken.mint(
+                                        token,
+                                        mint_args,
+                                        args.minting_account.owner,
+                                        archive_canisterIds,
+                                        defaultModel
+                                    );                                    
+                                };
+
+                                let burn_args : BurnArgs = {
+                                    from_subaccount = testAccounts[0].subaccount;
+                                    amount = 50 * (10 ** Nat8.toNat(args.decimals));
+                                    memo = null;
+                                    created_at_time = null;
+                                };
+
+                                // burn some tokens
+                                let result = await* ExtendedToken.burn(token, burn_args, testAccounts[0].owner, archive_canisterIds,defaultModel);
+                                                                
+                                let beforeScalingMinted:Nat = ExtendedToken.minted_supply(token);
+                                let beforeScalingBurned:Nat = ExtendedToken.burned_supply(token);
+                                let beforeScalingMax_supply:Nat = ExtendedToken.max_supply(token);
+                                let beforeScalingTotal_supply:Nat = ICRC1.icrc1_total_supply(token);
+                                let beforeScalingHolders: [T.AccountTypes.AccountBalanceInfo] = SlicesToken.get_holders(token, null,null);
+
+                                let scaleFactor:Nat = 100;                                
+                                await SlicesToken.up_or_down_scale_token_directly_internal(2, true, token);
+                           
+                                var varExpectedHolders:List.List<T.AccountTypes.AccountBalanceInfo> = List.nil<T.AccountTypes.AccountBalanceInfo>();
+                                var afterScalingTotalAmountFromAllHolders:Nat = 0;
+
+                                for(holder in Iter.fromArray(Array.reverse(beforeScalingHolders))){
+
+                                       let newHolder:T.AccountTypes.AccountBalanceInfo =  { holder with balance = holder.balance * scaleFactor };
+                                       afterScalingTotalAmountFromAllHolders+=newHolder.balance;
+                                       varExpectedHolders:=List.push<T.AccountTypes.AccountBalanceInfo>(newHolder,varExpectedHolders);    
+                                };
+
+                                let expectedAfterScalingHolders = List.toArray(varExpectedHolders);
+                                let afterScalingMinted:Nat = ExtendedToken.minted_supply(token);
+                                let afterScalingBurned:Nat = ExtendedToken.burned_supply(token);
+                                let afterScalingMax_supply:Nat = ExtendedToken.max_supply(token);
+                                let afterScalingTotal_supply:Nat = ICRC1.icrc1_total_supply(token);
+                                let afterScalingHolders: [T.AccountTypes.AccountBalanceInfo] = SlicesToken.get_holders(token, null,null);
+
+                                assertAllTrue([                                    
+                                    afterScalingHolders == expectedAfterScalingHolders,
+                                    afterScalingMinted == beforeScalingMinted * scaleFactor,
+                                    afterScalingBurned == beforeScalingBurned * scaleFactor,
+                                    afterScalingMax_supply == beforeScalingMax_supply * scaleFactor,
+                                    afterScalingTotal_supply == beforeScalingTotal_supply * scaleFactor,
+                                    afterScalingTotal_supply == afterScalingTotalAmountFromAllHolders                                   
+                                ]);
+                            },
+                        ),   
+                          it(
+                            "Downscale token x100 test",
+                            do {
+                                let args = {default_token_args with max_supply = 1_000_000_000_000_000 * (10 ** 8);};
+                                let token = Initializer.tokenInit(args);
+                                
+                                let testAccounts = create_test_accounts(100);
+                            
+                                // mint tokens for the test-accounts
+                                for(i in Iter.range(0,99)){
+                                    let mint_args = {
+                                        to = testAccounts[i];
+                                        amount = (i+100) * (10 ** Nat8.toNat(token.decimals));
+                                        memo = null;
+                                        created_at_time = null;
+                                    };
+
+                                    ignore await* ExtendedToken.mint(
+                                        token,
+                                        mint_args,
+                                        args.minting_account.owner,
+                                        archive_canisterIds,
+                                        defaultModel
+                                    );                                    
+                                };
+
+                                let burn_args : BurnArgs = {
+                                    from_subaccount = testAccounts[0].subaccount;
+                                    amount = 50 * (10 ** Nat8.toNat(args.decimals));
+                                    memo = null;
+                                    created_at_time = null;
+                                };
+
+                                // burn some tokens
+                                let result = await* ExtendedToken.burn(token, burn_args, testAccounts[0].owner, archive_canisterIds,defaultModel);
+                                                                
+                                let beforeScalingMinted:Nat = ExtendedToken.minted_supply(token);
+                                let beforeScalingBurned:Nat = ExtendedToken.burned_supply(token);
+                                let beforeScalingMax_supply:Nat = ExtendedToken.max_supply(token);
+                                let beforeScalingTotal_supply:Nat = ICRC1.icrc1_total_supply(token);
+                                let beforeScalingHolders: [T.AccountTypes.AccountBalanceInfo] = SlicesToken.get_holders(token, null,null);
+
+                                let scaleFactor:Nat = 100;                                
+                                await SlicesToken.up_or_down_scale_token_directly_internal(2, false, token);
+                           
+                                var varExpectedHolders:List.List<T.AccountTypes.AccountBalanceInfo> = List.nil<T.AccountTypes.AccountBalanceInfo>();
+                                
+                                var afterScalingTotalAmountFromAllHolders:Nat = 0;
+
+                                for(holder in Iter.fromArray(Array.reverse(beforeScalingHolders))){
+
+                                       let newHolder:T.AccountTypes.AccountBalanceInfo =  { holder with balance = holder.balance / scaleFactor };
+
+                                       afterScalingTotalAmountFromAllHolders+=newHolder.balance;
+                                       varExpectedHolders:=List.push<T.AccountTypes.AccountBalanceInfo>(newHolder,varExpectedHolders);    
+                                };
+
+                                let expectedAfterScalingHolders = List.toArray(varExpectedHolders);
+                                let afterScalingMinted:Nat = ExtendedToken.minted_supply(token);
+                                let afterScalingBurned:Nat = ExtendedToken.burned_supply(token);
+                                let afterScalingMax_supply:Nat = ExtendedToken.max_supply(token);
+                                let afterScalingTotal_supply:Nat = ICRC1.icrc1_total_supply(token);
+                                let afterScalingHolders: [T.AccountTypes.AccountBalanceInfo] = SlicesToken.get_holders(token, null,null);
+
+                                assertAllTrue([                                               
+                                    afterScalingHolders == expectedAfterScalingHolders,
+                                    afterScalingMinted == beforeScalingMinted / scaleFactor,
+                                    afterScalingBurned == beforeScalingBurned / scaleFactor,
+                                    afterScalingMax_supply == beforeScalingMax_supply / scaleFactor,
+                                    afterScalingTotal_supply == beforeScalingTotal_supply / scaleFactor,                                
+                                    afterScalingTotal_supply == afterScalingTotalAmountFromAllHolders
+                                ]);
+                            },
+                        ),                       
                     ],
                 ),
             ],

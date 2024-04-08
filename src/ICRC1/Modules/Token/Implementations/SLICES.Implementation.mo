@@ -6,9 +6,12 @@ import Result "mo:base/Result";
 import Itertools "mo:itertools/Iter";
 import Trie "mo:base/Trie";
 import List "mo:base/List";
+import Nat8 "mo:base/Nat8";
 import Utils "../Utils/Utils";
 import T "../../../Types/Types.All";
 import Account "../Account/Account";
+import MemoryController "../MemoryController/MemoryController";
+import {cancelTimer } = "mo:base/Timer";
 
 /// Slices Token implementations
 /// ( == functions needed for the future Slices-apps )
@@ -32,14 +35,8 @@ module {
     private type TransactionRange = T.TransactionTypes.TransactionRange;
     private type ArchivedTransaction = T.TransactionTypes.ArchivedTransaction;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
-
-    public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
-        Account.admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData);
-    };
-    public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
-        Account.admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin : Principal, token : TokenData);
-    };
-
+    
+ 
     public func list_admin_users(token : TokenData) : [Principal] {
         Account.list_admin_users(token : TokenData);
     };
@@ -154,6 +151,13 @@ module {
     // --------------------------------------------------------------------------------
     // Set or Update values
 
+   public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
+        Account.admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData);
+    };
+    public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
+        Account.admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin : Principal, token : TokenData);
+    };
+
     public func feewhitelisting_add_principal(caller : Principal, principal : Principal, token : TokenData) : Result.Result<Text, Text> {
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == false) {
@@ -186,6 +190,90 @@ module {
         token.feeWhitelistedPrincipals := List.push<Principal>(principal, token.feeWhitelistedPrincipals);
         return #ok("The principal is not fee white listed. Nothing to remove.");
     };
+
+
+    public func up_or_down_scale_token_internal(
+        numberOfDecimalPlaces : Nat8, 
+        isUpscaling : Bool,
+        token : TokenData,
+        memoryController : MemoryController.MemoryController
+    ) : async () {
+
+        // First cancel the timer
+        if (isUpscaling == true) {
+            cancelTimer(memoryController.model.settings.tokens_upscaling_timer_id);
+        } else {
+            cancelTimer(memoryController.model.settings.tokens_downscaling_timer_id);
+        };
+        memoryController.model.settings.token_operations_are_paused := false;
+
+        await up_or_down_scale_token_directly_internal(numberOfDecimalPlaces, isUpscaling, token);
+               
+        // Set upscale mode to normal again
+        if (isUpscaling == true) {
+            memoryController.model.settings.tokens_upscaling_mode := #idle;
+        } else {
+            memoryController.model.settings.tokens_downscaling_mode := #idle;
+        };
+
+    };
+
+    // We will need this function for the tests, therefore this function was extracted
+     public func up_or_down_scale_token_directly_internal(
+        numberOfDecimalPlaces : Nat8, 
+        isUpscaling : Bool,
+        token : TokenData,
+    ) : async () {
+
+
+        // Now do the upscaling
+        let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
+        
+
+        if (isUpscaling == true) {
+            token.max_supply *= factor;
+            token.minted_tokens *=  factor;
+            token.burned_tokens *= factor;
+
+        } else {
+            token.max_supply /=  factor;
+            token.minted_tokens /= factor;
+            token.burned_tokens /= factor;
+        };
+
+        
+        var iter = Trie.iter(token.accounts.trie);
+        var encodedAccounts : List.List<Blob> = List.nil<Blob>();
+        for ((encodedAccount : Blob, balance : T.CommonTypes.Balance) in iter) {
+            encodedAccounts := List.push<Blob>(encodedAccount, encodedAccounts);
+        };
+
+        for (encodedAccount : Blob in List.toIter<Blob>(encodedAccounts)) {
+            //Update the balance in accounts
+
+            if (isUpscaling == true) {
+                Utils.update_balance(
+                    token.accounts,
+                    encodedAccount,
+                    func(balance) {
+                        balance * factor;
+                    },
+                );
+
+            } else {
+                Utils.update_balance(
+                    token.accounts,
+                    encodedAccount,
+                    func(balance) {
+                        balance / factor;
+                    },
+                );
+
+            };
+
+        };
+    };
+
 
     // --------------------------------------------------------------------------------
 
