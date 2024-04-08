@@ -255,8 +255,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
         model.settings.tokens_upscaling_timer_id := setTimer<system>(
             #seconds waitSecondsBeforeStartingTheScaling,
-            func<system>() : async () {
-                await up_or_down_scale_token_now_internal(numberOfDecimalPlaces, true);
+            func<system>() : async () {                
+                await SlicesToken.up_or_down_scale_token_internal(numberOfDecimalPlaces, true, token, memoryController);
             },
         );
 
@@ -332,8 +332,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
         model.settings.tokens_downscaling_timer_id := setTimer<system>(
             #seconds waitSecondsBeforeStartingTheScaling,
-            func<system>() : async () {
-                await up_or_down_scale_token_now_internal(numberOfDecimalPlaces, false);
+            func<system>() : async () {                
+                await SlicesToken.up_or_down_scale_token_internal(numberOfDecimalPlaces, false, token, memoryController);
             },
         );
 

@@ -1,5 +1,4 @@
 import Debug "mo:base/Debug";
-
 import Archive "Archive/Archive.ActorTest";
 import ICRC1 "ICRC1/ICRC1.ActorTest";
 import ICRC2 "ICRC2/ICRC2.ActorTest";
