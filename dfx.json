@@ -9,7 +9,21 @@
             "type": "motoko",
             "main": "tests/internal_tests/ActorTest.mo",
             "args": "-v --compacting-gc"
-        }       
+        } 
+        ,
+        "ReentranceTests_frontend": {
+            "dependencies": [
+              "icrc1"
+            ],
+            "frontend": {
+              "entrypoint": "tests/reentrance_tests/frontend/src/index.html"
+            },
+            "source": [
+              "tests/reentrance_tests/frontend/assets",
+              "dist/reentrance_tests"
+            ],
+            "type": "assets"
+          }        
     },
     "defaults": {
         "build": {

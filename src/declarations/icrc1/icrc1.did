@@ -1,0 +1,371 @@
+type Value = 
+ variant {
+   Blob: blob;
+   Int: int;
+   Nat: nat;
+   Text: text;
+ };
+type TxIndex__1 = nat;
+type TxIndex = nat;
+type TransferResult = 
+ variant {
+   Err: TransferError;
+   Ok: TxIndex;
+ };
+type TransferFromResponse = 
+ variant {
+   Err: TransferFromError;
+   Ok: nat;
+ };
+type TransferFromError = 
+ variant {
+   BadBurn: record {min_burn_amount: nat;};
+   BadFee: record {expected_fee: nat;};
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: nat;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientAllowance: record {allowance: nat;};
+   InsufficientFunds: record {balance: nat;};
+   TemporarilyUnavailable;
+   TooOld;
+ };
+type TransferFromArgs = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   fee: opt Balance__2;
+   from: Account__1;
+   memo: opt Memo;
+   spender_subaccount: opt Subaccount__1;
+   to: Account__1;
+ };
+type TransferError = 
+ variant {
+   BadBurn: record {min_burn_amount: Balance__2;};
+   BadFee: record {expected_fee: Balance__2;};
+   CreatedInFuture: record {ledger_time: Timestamp;};
+   Duplicate: record {duplicate_of: TxIndex;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientFunds: record {balance: Balance__2;};
+   TemporarilyUnavailable;
+   TooOld;
+ };
+type TransferArgs = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   fee: opt Balance__2;
+   from_subaccount: opt Subaccount__1;
+   memo: opt blob;
+   to: Account__1;
+ };
+type Transfer = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   fee: Balance__2;
+   from: Account__1;
+   memo: opt blob;
+   to: Account__1;
+ };
+type Transaction__1 = 
+ record {
+   burn: opt Burn;
+   index: TxIndex;
+   kind: text;
+   mint: opt Mint;
+   timestamp: Timestamp;
+   transfer: opt Transfer;
+ };
+type TransactionRange__1 = record {transactions: vec Transaction;};
+type TransactionRange = record {transactions: vec Transaction;};
+type Transaction = 
+ record {
+   burn: opt Burn;
+   index: TxIndex;
+   kind: text;
+   mint: opt Mint;
+   timestamp: Timestamp;
+   transfer: opt Transfer;
+ };
+type TokenInitArgs = 
+ record {
+   decimals: nat8;
+   fee: Balance;
+   initial_balances: vec record {
+                           Account;
+                           Balance;
+                         };
+   logo: text;
+   max_supply: Balance;
+   min_burn_amount: Balance;
+   minting_account: opt Account;
+   minting_allowed: bool;
+   name: text;
+   symbol: text;
+ };
+type Token = 
+ service {
+   admin_add_admin_user: (principal) -> (Result);
+   admin_remove_admin_user: (principal) -> (Result);
+   /// Retrieve information for the main token and all dynamically added archive canisters:
+   /// - The balance for each canister is shown
+   /// - The canister-id for each canister is shown when this function is called by the minting-owner or admin
+   all_canister_stats: () -> (vec CanisterStatsResponse);
+   /// This functions disables the auto fill up timer
+   auto_topup_cycles_disable: () -> (Result);
+   /// This function enables the timer to auto fill the dynamically created archive canisters
+   auto_topup_cycles_enable: (opt nat) -> (Result);
+   /// Show the status of the auto fill up timer settings
+   auto_topup_cycles_status: () -> (CanisterAutoTopUpDataResponse);
+   burn: (BurnArgs) -> (TransferResult);
+   cycles_balance: () -> (nat) query;
+   deposit_cycles: () -> ();
+   feewhitelisting_add_principal: (principal) -> (Result);
+   feewhitelisting_get_list: () -> (vec principal) query;
+   feewhitelisting_remove_principal: (principal) -> (Result);
+   get_archive: () -> (ArchiveInterface) query;
+   get_archive_stored_txs: () -> (nat) query;
+   get_burned_amount: () -> (nat) query;
+   /// Get list of the holders
+   /// The returned list can contain maximum 5000 entries. Therefore the additional 'index' and 'count' parameter in case
+   /// there are more than 5000 entries available.
+   get_holders: (opt nat, opt nat) -> (vec AccountBalanceInfo) query;
+   /// Get token holders count
+   get_holders_count: () -> (nat) query;
+   get_max_supply: () -> (nat) query;
+   get_total_tx: () -> (nat) query;
+   get_transaction: (TxIndex) -> (opt Transaction);
+   get_transactions: (GetTransactionsRequest) ->
+    (GetTransactionsResponse) query;
+   icrc1_balance_of: (Account__2) -> (Balance__1) query;
+   icrc1_decimals: () -> (nat8) query;
+   icrc1_fee: () -> (Balance__1) query;
+   icrc1_metadata: () -> (vec MetaDatum) query;
+   icrc1_minting_account: () -> (opt Account__2) query;
+   icrc1_name: () -> (text) query;
+   icrc1_supported_standards: () -> (vec SupportedStandard) query;
+   icrc1_symbol: () -> (text) query;
+   icrc1_total_supply: () -> (Balance__1) query;
+   icrc1_transfer: (TransferArgs) -> (TransferResult);
+   icrc2_allowance: (AllowanceArgs) -> (Allowance) query;
+   icrc2_approve: (ApproveArgs) -> (ApproveResult);
+   icrc2_transfer_from: (TransferFromArgs) -> (TransferFromResponse);
+   list_admin_users: () -> (vec principal) query;
+   min_burn_amount: () -> (Balance__1) query;
+   mint: (Mint) -> (TransferResult);
+   real_fee: (principal, principal) -> (Balance__1) query;
+   set_decimals: (nat8) -> (SetNat8ParameterResult);
+   set_fee: (Balance__1) -> (SetBalanceParameterResult);
+   set_logo: (text) -> (SetTextParameterResult);
+   set_min_burn_amount: (Balance__1) -> (SetBalanceParameterResult);
+   set_name: (text) -> (SetTextParameterResult);
+   set_symbol: (text) -> (SetTextParameterResult);
+   token_operation_continue: () -> (Result);
+   /// Pause token operations. This is useful if we do some time consuming operations like update/upgrade or token scaling...
+   token_operation_pause: (nat) -> (Result);
+   token_operation_status: () -> (text) query;
+   tokens_amount_downscale: (nat8) -> (Result);
+   tokens_amount_upscale: (nat8) -> (Result);
+ };
+type Timestamp = nat64;
+type SupportedStandard = 
+ record {
+   name: text;
+   url: text;
+ };
+type Subaccount__1 = blob;
+type Subaccount = blob;
+type SetTextParameterResult = 
+ variant {
+   Err: SetParameterError;
+   Ok: text;
+ };
+type SetParameterError = variant {
+                           GenericError:
+                            record {
+                              error_code: nat;
+                              message: text;
+                            };};
+type SetNat8ParameterResult = 
+ variant {
+   Err: SetParameterError;
+   Ok: nat8;
+ };
+type SetBalanceParameterResult = 
+ variant {
+   Err: SetParameterError;
+   Ok: Balance;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type QueryArchiveFn = func (GetTransactionsRequest) ->
+                       (TransactionRange) query;
+type Mint = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   memo: opt blob;
+   to: Account__1;
+ };
+type MetaDatum = 
+ record {
+   text;
+   Value;
+ };
+type Memo = blob;
+type GetTransactionsResponse = 
+ record {
+   archived_transactions: vec ArchivedTransaction;
+   first_index: TxIndex;
+   log_length: nat;
+   transactions: vec Transaction;
+ };
+type GetTransactionsRequest__1 = 
+ record {
+   length: nat;
+   start: TxIndex;
+ };
+type GetTransactionsRequest = 
+ record {
+   length: nat;
+   start: TxIndex;
+ };
+type CanisterStatsResponse = 
+ record {
+   balance: Balance__3;
+   name: text;
+   "principal": text;
+ };
+type CanisterAutoTopUpDataResponse = 
+ record {
+   autoCyclesTopUpEnabled: bool;
+   autoCyclesTopUpMinutes: nat;
+   autoCyclesTopUpOccuredNumberOfTimes: nat;
+   autoCyclesTopUpTimerId: nat;
+ };
+type BurnArgs = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   from_subaccount: opt Subaccount__1;
+   memo: opt blob;
+ };
+type Burn = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   from: Account__1;
+   memo: opt blob;
+ };
+type Balance__3 = nat;
+type Balance__2 = nat;
+type Balance__1 = nat;
+type Balance = nat;
+type ArchivedTransaction = 
+ record {
+   callback: QueryArchiveFn;
+   length: nat;
+   start: TxIndex;
+ };
+type ArchiveInterface = 
+ service {
+   append_transactions: (vec Transaction__1) -> (Result_1);
+   cycles_available: () -> (nat) query;
+   deposit_cycles: () -> ();
+   get_first_tx: () -> (nat) query;
+   get_last_tx: () -> (nat) query;
+   get_next_archive: () -> (ArchiveInterface) query;
+   get_prev_archive: () -> (ArchiveInterface) query;
+   get_transaction: (TxIndex__1) -> (opt Transaction__1) query;
+   get_transactions: (GetTransactionsRequest__1) ->
+    (TransactionRange__1) query;
+   heap_max: () -> (nat) query;
+   heap_total_used: () -> (nat) query;
+   init: (nat, nat, nat) -> (principal);
+   max_memory: () -> (nat) query;
+   memory_is_full: () -> (bool) query;
+   memory_total_used: () -> (nat) query;
+   remaining_heap_capacity: () -> (nat) query;
+   remaining_memory_capacity: () -> (nat) query;
+   set_next_archive: (ArchiveInterface) -> (Result_1);
+   set_prev_archive: (ArchiveInterface) -> (Result_1);
+   total_transactions: () -> (nat) query;
+ };
+type ApproveResult = 
+ variant {
+   Err: ApproveError;
+   Ok: nat;
+ };
+type ApproveError = 
+ variant {
+   AllowanceChanged: record {current_allowance: nat;};
+   BadFee: record {expected_fee: nat;};
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: nat;};
+   Expired: record {ledger_time: nat64;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientFunds: record {balance: nat;};
+   TemporarilyUnavailable;
+   TooOld;
+ };
+type ApproveArgs = 
+ record {
+   amount: Balance__2;
+   created_at_time: opt nat64;
+   expected_allowance: opt nat;
+   expires_at: opt nat64;
+   fee: opt Balance__2;
+   from_subaccount: opt Subaccount__1;
+   memo: opt Memo;
+   spender: Account__1;
+ };
+type AllowanceArgs = 
+ record {
+   account: Account__1;
+   spender: Account__1;
+ };
+type Allowance = 
+ record {
+   allowance: nat;
+   expires_at: opt nat64;
+ };
+type Account__2 = 
+ record {
+   owner: principal;
+   subaccount: opt Subaccount;
+ };
+type Account__1 = 
+ record {
+   owner: principal;
+   subaccount: opt Subaccount;
+ };
+type AccountBalanceInfo = 
+ record {
+   account: Account__2;
+   balance: Balance__3;
+ };
+type Account = 
+ record {
+   owner: principal;
+   subaccount: opt Subaccount;
+ };
+/// The actor class for the main token
+service : (opt TokenInitArgs) -> Token
