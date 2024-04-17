@@ -12,9 +12,7 @@
         } 
         ,
         "ReentranceTests_frontend": {
-            "dependencies": [
-              "icrc1"
-            ],
+            
             "frontend": {
               "entrypoint": "tests/reentrance_tests/frontend/src/index.html"
             },

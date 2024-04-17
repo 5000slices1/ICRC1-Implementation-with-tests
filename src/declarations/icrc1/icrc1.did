@@ -160,6 +160,9 @@ type Token =
    list_admin_users: () -> (vec principal) query;
    min_burn_amount: () -> (Balance__1) query;
    mint: (Mint) -> (TransferResult);
+   parallel_test_internal: () -> ();
+   parallel_test_run: () -> ();
+   parallel_test_show_counter: () -> (nat) query;
    real_fee: (principal, principal) -> (Balance__1) query;
    set_decimals: (nat8) -> (SetNat8ParameterResult);
    set_fee: (Balance__1) -> (SetBalanceParameterResult);

@@ -333,6 +333,9 @@ export const idlFactory = ({ IDL }) => {
     'list_admin_users' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'min_burn_amount' : IDL.Func([], [Balance__1], ['query']),
     'mint' : IDL.Func([Mint], [TransferResult], []),
+    'parallel_test_internal' : IDL.Func([], [], []),
+    'parallel_test_run' : IDL.Func([], [], []),
+    'parallel_test_show_counter' : IDL.Func([], [IDL.Nat], ['query']),
     'real_fee' : IDL.Func(
         [IDL.Principal, IDL.Principal],
         [Balance__1],

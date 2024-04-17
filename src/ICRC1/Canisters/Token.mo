@@ -17,6 +17,7 @@ import Nat8 "mo:base/Nat8";
 import Float "mo:base/Float";
 import Trie "mo:base/Trie";
 import Blob "mo:base/Blob";
+import Iter "mo:base/Iter";
 import T "../Types/Types.All";
 import Constants "../Types/Types.Constants";
 import Account "../Modules/Token/Account/Account";
@@ -42,6 +43,34 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     };
 
     private let memoryController : MemoryController.MemoryController = MemoryController.MemoryController(model);
+
+
+    stable var counter:Nat = 0;
+    stable var counterBefore:Nat = 0;
+
+    public shared query func parallel_test_show_counter():async Nat{
+        counter;
+    };
+
+    public shared func parallel_test_run(): async (){
+        counterBefore:=counter;        
+        counter:=counter + 1;
+        Debug.print("inside");
+
+        await parallel_test_internal();
+        counter:=counterBefore;
+        Debug.print("outside");
+
+    };
+
+    public shared func parallel_test_internal():async(){
+                
+        for(index in Iter.range(0,100000)){
+            counter:=counter+1;
+        };
+    };
+
+
 
     // ------------------------------------------------------------------------------------------
     // ICRC1
@@ -750,6 +779,9 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #tokens_amount_downscale : () -> Any;
             #get_burned_amount : () -> ();
             #get_max_supply : () -> ();
+            #parallel_test_run:()->();
+            #parallel_test_internal:()->();
+            #parallel_test_show_counter : () -> ();
         };
     }) : Bool {
 

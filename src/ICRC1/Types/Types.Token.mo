@@ -2,6 +2,7 @@ import CommonTypes "Types.Common";
 import AccountTypes "Types.Account";
 import TransactionTypes "Types.Transaction";
 import StableBuffer "mo:StableBuffer/StableBuffer";
+import Nat "mo:base/Nat";
 import ArchiveTypes "Types.Archive";
 
 module {
@@ -208,7 +209,14 @@ module {
         get_transactions : shared query (GetTransactionsRequest) -> async GetTransactionsResponse;
     };
 
+    public type TestInterface = actor {
+
+        parallel_test_run:shared () -> async ();
+        parallel_test_show_counter:shared query () -> async Nat;
+
+    };
+
     /// Interface of the ICRC token and Rosetta canister
-    public type FullInterface = Icrc1Interface and Icrc2Interface and RosettaInterface;
+    public type FullInterface = Icrc1Interface and Icrc2Interface and RosettaInterface and TestInterface;
 
 };

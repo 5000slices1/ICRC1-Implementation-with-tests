@@ -19,11 +19,35 @@ TOKENINITFORTEST='( opt record { \
 	minting_allowed=true; \
 })' \
 
+TOKENINITFORREENTRANCETEST='( opt record { \
+	name = "Test Token"; \
+	symbol = "TestToken"; \
+	decimals = 8; \
+	fee = 100_000; \
+	max_supply = 500_000_000_000; \
+	logo = ""; \
+	initial_balances = vec { \
+		record { \
+			record { \
+				owner = principal "$(TESTPRINCIPALREENTRANCETESTS)"; \
+				subaccount = null; \
+			}; \
+			300_000_000_000 \
+		} \
+	}; \
+	min_burn_amount = 10_000; \
+	minting_account = null; \
+	minting_allowed=true; \
+})' \
+
 TESTIDENTITY=IdentityForTests
 TESTPRINCIPAL=empty
 
 TESTIDENTITYMINTINGOWNER=empty
 TESTPRINCIPALMINTINGOWNER=empty
+
+TESTPRINCIPALREENTRANCETESTS=qtvox-jqz3t-4anax-gw7yg-kwcuj-5hqyg-cy2rr-3vgue-jqyrd-6qdu6-2ae
+CANISTERIDREENTRANCETESTS=empty
 
 CANISTERID=empty
 PEMDIR=~/.config/dfx/identity/$(TESTIDENTITY)
@@ -58,6 +82,44 @@ internal-tests: install-check dfx-cache-install
 	@dfx ledger fabricate-cycles --canister test --cycles 100000000000000
 	@dfx canister call test run_tests
 
+start-browser:
+	xdg-open http://127.0.0.1:4943/?canisterId=bkyz2-fmaaa-aaaaa-qaaaq-cai
+
+reentrance-tests: update-variables install-check AddIdentities reentrance-tests-deploy-test-canister reentrance-tests-deploy-icrc1-canister
+	@dfx canister call icrc1 admin_add_admin_user 'principal "$(CANISTERIDREENTRANCETESTS)"'
+	@$(eval CANISTERIDREENTRANCETESTS=$(shell dfx canister id ReentranceTests_frontend))
+	xdg-open http://$(CANISTERIDREENTRANCETESTS).localhost:4943/
+	 
+
+reentrance-tests-deploy-test-canister:
+	@$(eval TESTIDENTITYMINTINGOWNER=$(shell dfx identity whoami))
+	@$(eval TESTPRINCIPALMINTINGOWNER=$(shell dfx identity get-principal --identity $(TESTIDENTITYMINTINGOWNER)))	
+	@$(eval TESTPRINCIPAL=$(shell dfx identity get-principal --identity $(TESTIDENTITY)))	
+	dfx stop
+	dfx start --background --clean
+	@sleep 5
+	@echo identity for testing $(TESTIDENTITY)
+	@echo identity as token owner $(TESTIDENTITYMINTINGOWNER)	
+	@echo dfx deploy ReentranceTests_frontend --identity $(TESTIDENTITYMINTINGOWNER) --no-wallet
+	@dfx deploy ReentranceTests_frontend --identity $(TESTIDENTITYMINTINGOWNER) --no-wallet
+	@dfx ledger fabricate-cycles --canister ReentranceTests_frontend --cycles 10000000
+
+
+
+reentrance-tests-deploy-icrc1-canister:
+	@$(eval TESTIDENTITYMINTINGOWNER=$(shell dfx identity whoami))
+	@$(eval TESTPRINCIPALMINTINGOWNER=$(shell dfx identity get-principal --identity $(TESTIDENTITYMINTINGOWNER)))	
+	@$(eval TESTPRINCIPAL=$(shell dfx identity get-principal --identity $(TESTIDENTITY)))	
+	@$(eval CANISTERIDREENTRANCETESTS=$(shell dfx canister id ReentranceTests_frontend))
+#	dfx stop
+#	dfx start --background --clean
+#	@sleep 5
+	@echo identity for testing $(TESTIDENTITY)
+	@echo identity as token owner $(TESTIDENTITYMINTINGOWNER)	
+	@echo dfx deploy icrc1 --identity $(TESTIDENTITYMINTINGOWNER) --no-wallet --argument $(TOKENINITFORREENTRANCETEST)
+	@dfx deploy icrc1 --identity $(TESTIDENTITYMINTINGOWNER) --no-wallet --argument $(TOKENINITFORREENTRANCETEST)
+	@dfx ledger fabricate-cycles --canister icrc1 --cycles 10000000	
+	
 ref-test: update-variables install-check AddIdentities ref-test-before ref-test-execution ref-test-after
 	
 ref-test-before:    
