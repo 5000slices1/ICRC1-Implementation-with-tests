@@ -124,11 +124,11 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // ------------------------------------------------------------------------------------------
     // ICRC2
 
-    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResult {
+    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResult {         
         ICRC2.icrc2_approve(caller, approveArgs, token, memoryController);
     };
 
-    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {
+    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {        
         ICRC2.icrc2_allowance(allowanceArgs, memoryController);
     };
 
@@ -255,6 +255,15 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             };
         };
 
+          switch (model.settings.tokens_downscaling_mode) {            
+            case (#progressing(decimalPlaces)) {
+                return #err("Downscaling is still on progress...");
+            };
+            case (_) {
+
+            };
+        };
+
         if (request_Should_be_used == true) {
 
             model.settings.tokens_upscaling_mode := #requested(caller, Time.now(), numberOfDecimalPlaces);
@@ -325,12 +334,22 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
                 };
             };
             case (#progressing(decimalPlaces)) {
+                return #err("Downscaling is still on progress...");
+            };
+            case (_) {
+
+            };
+        };
+
+        switch (model.settings.tokens_upscaling_mode) {            
+            case (#progressing(decimalPlaces)) {
                 return #err("Upscaling is still on progress...");
             };
             case (_) {
 
             };
         };
+
 
         if (request_Should_be_used == true) {
 
@@ -424,6 +443,10 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
+         if (caller != token.minting_account.owner) {
+            return #Err(#GenericError({error_code =401; message = "Only minting account can mint new tokens"}));
+        };
+
         await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
@@ -600,73 +623,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             },
         );
     };
-
-    private func up_or_down_scale_token_now_internal(numberOfDecimalPlaces : Nat8, isUpscaling : Bool) : async () {
-
-        // First cancel the timer
-        if (isUpscaling == true) {
-            cancelTimer(model.settings.tokens_upscaling_timer_id);
-        } else {
-            cancelTimer(model.settings.tokens_downscaling_timer_id);
-        };
-        model.settings.token_operations_are_paused := false;
-
-        // Now do the upscaling
-        let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
-        
-
-        if (isUpscaling == true) {
-            token.max_supply *= factor;
-            token.minted_tokens *=  factor;
-            token.burned_tokens *= factor;
-
-        } else {
-            token.max_supply /=  factor;
-            token.minted_tokens /= factor;
-            token.burned_tokens /= factor;
-        };
-
-        
-        var iter = Trie.iter(token.accounts.trie);
-        var encodedAccounts : List.List<Blob> = List.nil<Blob>();
-        for ((encodedAccount : Blob, balance : T.CommonTypes.Balance) in iter) {
-            encodedAccounts := List.push<Blob>(encodedAccount, encodedAccounts);
-        };
-
-        for (encodedAccount : Blob in List.toIter<Blob>(encodedAccounts)) {
-            //Update the balance in accounts
-
-            if (isUpscaling == true) {
-                Utils.update_balance(
-                    token.accounts,
-                    encodedAccount,
-                    func(balance) {
-                        balance * factor;
-                    },
-                );
-
-            } else {
-                Utils.update_balance(
-                    token.accounts,
-                    encodedAccount,
-                    func(balance) {
-                        balance / factor;
-                    },
-                );
-
-            };
-
-        };
-       
-        // Set upscale mode to normal again
-        if (isUpscaling == true) {
-            model.settings.tokens_upscaling_mode := #idle;
-        } else {
-            model.settings.tokens_downscaling_mode := #idle;
-        };
-
-    };
-
+    
     private func cyclesAvailable() : Nat {
         Cycles.balance();
     };
