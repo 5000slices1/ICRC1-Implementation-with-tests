@@ -34,6 +34,15 @@ module {
         #progressing:Nat8;        
     };
 
+    public type BackupInitState = {
+        #idle;
+        #initiated:(startTime:Nat);        
+    };
+
+    public type BackupStateInfo = {
+        var state:BackupInitState;
+    };
+
     
     public type Settings = {
         var wasInitializedWithArguments : Bool;
@@ -74,6 +83,12 @@ module {
 
         // Timer id for the ongoing token restoring process. (Restore from previous backup data)
         var tokens_restore_data_timer_id:Nat;
+        //-------------------------------------------------------------------
+
+        //-------------------------------------------------------------------
+        // Backup/Restore
+        backupStateInfo:BackupStateInfo;
+
         //-------------------------------------------------------------------
         
     };

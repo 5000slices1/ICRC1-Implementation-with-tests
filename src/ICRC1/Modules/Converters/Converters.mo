@@ -5,6 +5,7 @@ import Cycles "mo:base/ExperimentalCycles";
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Blob "mo:base/Blob";
+import Array "mo:base/Array";
 import Itertools "mo:itertools/Iter";
 import TypesConstants "../../Types/Types.Constants";
 import Account "../Token/Account/Account";
@@ -176,6 +177,18 @@ module {
         from_candid(Blob.fromArray(array));        
     };
 
+    public func ConvertAccountHoldersToNat8Array(items:[T.AccountTypes.AccountBalanceInfo]):[Nat8]{
+        if (Array.size(items) == 0){
+            return [];
+        };
+        
+        return Blob.toArray(to_candid(items)); 
+    };
+
+    public func ConvertToAccountGoldersFromNat8Array(array:[Nat8]):?[T.AccountTypes.AccountBalanceInfo]{
+          let result:?[T.AccountTypes.AccountBalanceInfo] = from_candid(Blob.fromArray(array));  
+          return result;
+    };
 
 
     //--------------------------------------------------------------------------------

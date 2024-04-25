@@ -14,6 +14,9 @@ import HashTable "mo:memory-hashtable";
 import { ConstantTypes } = "../../../Types/Types.All";
 import Account "../Account/Account";
 import Model "../../../Types/Types.Model";
+import TypesBackupRestore "../../../Types/Types.BackupRestore";
+
+
 
 module {
 
@@ -58,6 +61,10 @@ module {
                 var tokens_upscaling_timer_id:Nat = 0;
                 var tokens_downscaling_timer_id:Nat = 0;
                 var tokens_restore_data_timer_id:Nat = 0;
+
+                backupStateInfo:Model.BackupStateInfo = {
+                    var state:Model.BackupInitState = #idle;
+                };
             };
 
             databaseStorages : Model.DatabaseStorages = {

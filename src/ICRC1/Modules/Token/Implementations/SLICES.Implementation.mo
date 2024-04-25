@@ -12,6 +12,7 @@ import T "../../../Types/Types.All";
 import Account "../Account/Account";
 import MemoryController "../MemoryController/MemoryController";
 import {cancelTimer } = "mo:base/Timer";
+import StableBuffer "mo:StableBuffer/StableBuffer";
 
 /// Slices Token implementations
 /// ( == functions needed for the future Slices-apps )
@@ -146,6 +147,46 @@ module {
 
     public func feewhitelisting_get_list(token : TokenData) : [Principal] {
         return List.toArray<Principal>(token.feeWhitelistedPrincipals);
+    };
+
+    /// Returns array of the transactions stored on the main-token (not went into archive yet)
+    /// This method is only used for the backup/restoring function
+    public func get_internal_transactions(token : TokenData, index : ?Nat, count : ?Nat) : [Transaction] {
+
+        let size : Nat = StableBuffer.size(token.transactions);
+        
+        let indexValue : Nat = switch (index) {
+            case (?index) index;
+            case (null) 0;
+        };
+
+        let countValue : Nat = switch (count) {
+            case (?count) count;
+            case (null) size;
+        };
+
+        if (indexValue >= size) {
+            return [];
+        };
+        let maxNumbersToReturn : Nat = 5000;
+        var countToUse : Nat = Nat.min(Nat.min(countValue, size -indexValue), maxNumbersToReturn);
+        
+        var iter = StableBuffer.vals<Transaction>(token.transactions);
+
+        //Because of reverse order:
+        let revIndex : Nat = size - (indexValue + countToUse);
+
+        iter := Itertools.skip(iter, revIndex);
+        iter := Itertools.take(iter, countToUse);
+
+        var resultList : List.List<Transaction> = List.nil<Transaction>();
+        var resultIter = Iter.fromList<Transaction>(resultList);
+
+        for (transActionItem in iter) {            
+            resultIter := Itertools.prepend<Transaction>(transActionItem, resultIter);
+        };
+
+        return Iter.toArray<Transaction>(resultIter);
     };
 
     // --------------------------------------------------------------------------------

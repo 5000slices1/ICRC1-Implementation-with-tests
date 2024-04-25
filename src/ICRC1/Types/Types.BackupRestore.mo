@@ -30,6 +30,7 @@ module {
   };
 
   public type BackupType = {
+    #initiateBackup;
     #tokenCommonData;
     #tokenAccounts;
     #tokenFeeWhitelistedPrincipals;
@@ -38,10 +39,15 @@ module {
 
   };
 
-  public type BackupInfoChunk = {
+  public type RestoreInfo = {
     dataType : BackupType;
     bytesLength : Nat;
     isLastChunkForThisType : Bool;
+  };
+
+  public type BackupParameter = {
+    currentIndex:Nat;    
+    chunkCount:Nat;    
   };
 
 };
