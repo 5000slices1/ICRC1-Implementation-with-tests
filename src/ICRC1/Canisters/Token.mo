@@ -25,6 +25,9 @@ import Model "../Types/Types.Model";
 import Converters = "../Modules/Converters/Converters";
 import MemoryController "../Modules/Token/MemoryController/MemoryController";
 import Utils "../Modules/Token/Utils/Utils";
+import TypesBackupRestore "../Types/Types.BackupRestore";
+
+
 
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
@@ -344,6 +347,27 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // ------------------------------------------------------------------------------------------
     // Additional token functions
 
+ 
+    public shared ({ caller }) func backup(backupParameter:TypesBackupRestore.BackupParameter)       
+    :async Result.Result<(isComplete:Bool, data:[Nat8]), Text>{
+            
+            if (Account.user_is_owner_or_admin(caller, token) == false) {
+                return #err("Unauthorized: Only minting account or admin can call this function..");
+            };
+
+            ExtendedToken.backup(memoryController,token,backupParameter);
+        };
+
+    public shared ({ caller }) func restore(restoreInfo:TypesBackupRestore.RestoreInfo)
+    :async Result.Result<Text, Text>{
+
+            if (Account.user_is_owner_or_admin(caller, token) == false) {
+                return #err("Unauthorized: Only minting account or admin can call this function..");
+            };
+
+            ExtendedToken.restore(memoryController, token, restoreInfo);
+        };
+
     /// Pause token operations. This is useful if we do some time consuming operations like update/upgrade or token scaling...
     public shared ({ caller }) func token_operation_pause<system>(minutes : Nat) : async Result.Result<Text, Text> {
         if (Account.user_is_owner_or_admin(caller, token) == false) {
@@ -572,72 +596,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         );
     };
 
-    private func up_or_down_scale_token_now_internal(numberOfDecimalPlaces : Nat8, isUpscaling : Bool) : async () {
-
-        // First cancel the timer
-        if (isUpscaling == true) {
-            cancelTimer(model.settings.tokens_upscaling_timer_id);
-        } else {
-            cancelTimer(model.settings.tokens_downscaling_timer_id);
-        };
-        model.settings.token_operations_are_paused := false;
-
-        // Now do the upscaling
-        let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
-        
-
-        if (isUpscaling == true) {
-            token.max_supply *= factor;
-            token.minted_tokens *=  factor;
-            token.burned_tokens *= factor;
-
-        } else {
-            token.max_supply /=  factor;
-            token.minted_tokens /= factor;
-            token.burned_tokens /= factor;
-        };
-
-        
-        var iter = Trie.iter(token.accounts.trie);
-        var encodedAccounts : List.List<Blob> = List.nil<Blob>();
-        for ((encodedAccount : Blob, balance : T.CommonTypes.Balance) in iter) {
-            encodedAccounts := List.push<Blob>(encodedAccount, encodedAccounts);
-        };
-
-        for (encodedAccount : Blob in List.toIter<Blob>(encodedAccounts)) {
-            //Update the balance in accounts
-
-            if (isUpscaling == true) {
-                Utils.update_balance(
-                    token.accounts,
-                    encodedAccount,
-                    func(balance) {
-                        balance * factor;
-                    },
-                );
-
-            } else {
-                Utils.update_balance(
-                    token.accounts,
-                    encodedAccount,
-                    func(balance) {
-                        balance / factor;
-                    },
-                );
-
-            };
-
-        };
-       
-        // Set upscale mode to normal again
-        if (isUpscaling == true) {
-            model.settings.tokens_upscaling_mode := #idle;
-        } else {
-            model.settings.tokens_downscaling_mode := #idle;
-        };
-
-    };
-
+   
     private func cyclesAvailable() : Nat {
         Cycles.balance();
     };
@@ -750,6 +709,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #tokens_amount_downscale : () -> Any;
             #get_burned_amount : () -> ();
             #get_max_supply : () -> ();
+            #backup : () -> (TypesBackupRestore.BackupParameter);
+            #restore:() -> Any;
         };
     }) : Bool {
 
@@ -765,6 +726,12 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
                     };
                     case ((#token_operation_pause _)) {
                         return true;
+                    };
+                    case ((#backup _)){
+                        return true;  
+                    };
+                    case ((#restore _)){
+                        return true;  
                     };
                     case _ {
                         return false;

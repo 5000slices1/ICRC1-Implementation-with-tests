@@ -185,7 +185,7 @@ module {
         return Blob.toArray(to_candid(items)); 
     };
 
-    public func ConvertToAccountGoldersFromNat8Array(array:[Nat8]):?[T.AccountTypes.AccountBalanceInfo]{
+    public func ConvertToAccountHoldersFromNat8Array(array:[Nat8]):?[T.AccountTypes.AccountBalanceInfo]{
           let result:?[T.AccountTypes.AccountBalanceInfo] = from_candid(Blob.fromArray(array));  
           return result;
     };

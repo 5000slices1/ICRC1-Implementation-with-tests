@@ -40,14 +40,15 @@ module {
   };
 
   public type RestoreInfo = {
-    dataType : BackupType;
-    bytesLength : Nat;
-    isLastChunkForThisType : Bool;
+    dataType: BackupType;
+    isFirstChunk:Bool;
+    bytes:[Nat8];    
   };
 
   public type BackupParameter = {
-    currentIndex:Nat;    
-    chunkCount:Nat;    
+    backupType:BackupType;
+    currentIndex:?Nat;    
+    chunkCount:?Nat;    
   };
 
 };
