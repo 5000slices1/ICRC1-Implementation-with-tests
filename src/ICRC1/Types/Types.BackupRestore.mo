@@ -23,32 +23,25 @@ module {
     permitted_drift : Nat;
     feeWhitelistedPrincipals : TypesAccount.PrincipalsWhitelistedFees;
     tokenAdmins : TypesAccount.AdminPrincipals;
-
-    //transactions : [TypesTransaction.Transaction];
-    //archive : ArchiveData;
-    //accounts : AccountBalances;
   };
 
   public type BackupType = {
-    #initiateBackup;
     #tokenCommonData;
     #tokenAccounts;
-    #tokenFeeWhitelistedPrincipals;
-    #tokenTokenAdmins;
     #tokenTransactionsBuffer;
 
   };
 
   public type RestoreInfo = {
-    dataType: BackupType;
-    isFirstChunk:Bool;
-    bytes:[Nat8];    
+    dataType : BackupType;
+    isFirstChunk : Bool;
+    bytes : [Nat8];
   };
 
   public type BackupParameter = {
-    backupType:BackupType;
-    currentIndex:?Nat;    
-    chunkCount:?Nat;    
+    backupType : BackupType;
+    currentIndex : ?Nat;
+    chunkCount : ?Nat;
   };
 
 };

@@ -6,6 +6,7 @@ import Array "mo:base/Array";
 import Principal "mo:base/Principal";
 import List "mo:base/List";
 import Iter "mo:base/Iter";
+import Debug "mo:base/Debug";
 import Blobify "mo:memory-buffer/Blobify";
 import CommonTypes "../../../Types/Types.Common";
 import T "../../../Types/Types.All";
@@ -27,31 +28,30 @@ module {
     let { SB } = Utils;
     private type AccountBalances = T.AccountTypes.AccountBalances;
 
-
     public func restore(
         memoryController : MemoryController.MemoryController,
-        token:T.TokenTypes.TokenData,
-        restoreInfo:TypesBackupRestore.RestoreInfo,
+        token : T.TokenTypes.TokenData,
+        restoreInfo : TypesBackupRestore.RestoreInfo,
 
-    ):Result.Result<Text, Text>{
+    ) : Result.Result<Text, Text> {
 
-        switch(restoreInfo.dataType){
-            case (#tokenCommonData){
-                return RestoreFromTokenMainDataNat8Array(token, restoreInfo.bytes);                
-            };          
-            case (#tokenAccounts){ 
+        switch (restoreInfo.dataType) {
+            case (#tokenCommonData) {
+                return RestoreFromTokenMainDataNat8Array(token, restoreInfo.bytes);
+            };
+            case (#tokenAccounts) {
 
-                if (restoreInfo.isFirstChunk == true){
+                if (restoreInfo.isFirstChunk == true) {
                     STMap.clear(token.accounts);
                 };
 
-                let accountsOrNull: ?[T.AccountTypes.AccountBalanceInfo]= Nat8ArrayToAccountHolders(restoreInfo.bytes);
-                switch(accountsOrNull){
-                    case (?accounts){
-                        
-                        for(element in RevIter.fromArray(accounts)){
-                            let encodedAccount:TypesAccount.EncodedAccount = Account.encode(element.account);
-                            let balance:T.Balance = element.balance;
+                let accountsOrNull : ?[T.AccountTypes.AccountBalanceInfo] = Nat8ArrayToAccountHolders(restoreInfo.bytes);
+                switch (accountsOrNull) {
+                    case (?accounts) {
+
+                        for (element in RevIter.fromArray(accounts)) {
+                            let encodedAccount : TypesAccount.EncodedAccount = Account.encode(element.account);
+                            let balance : T.Balance = element.balance;
 
                             STMap.put(
                                 token.accounts,
@@ -63,72 +63,33 @@ module {
                         };
                         return #ok("");
                     };
-                    case (_){
+                    case (_) {
                         return #err("Cannot convert holders array");
-                    }
+                    };
                 };
 
-                    
-            };                        
-            case (#tokenFeeWhitelistedPrincipals)
-            {                            
-
-                let itemsOrNull:?[Principal] =  Nat8ArrayToTokenFeeWhiteListedPrincipals(restoreInfo.bytes);
-                switch(itemsOrNull){
-                    case (?items){
-                        Utils.emptyList(token.feeWhitelistedPrincipals);
-                        if (Array.size(items) > 0){
-                            for(item in RevIter.fromArray(items)){
-                                token.feeWhitelistedPrincipals:= List.push(item, token.feeWhitelistedPrincipals);
-                            }
-                        };
-                        return #ok("");                      
-                    };                                    
-                    case (_){
-                        return #err("Could not convert Token white listed principals information.");
-                    };
-                };                             
             };
-               
-            case (#tokenTokenAdmins){
 
-                let itemsOrNull:?[Principal] =  Nat8ArrayToTokenAdmins(restoreInfo.bytes);
-                switch(itemsOrNull){
-                    case (?items){
-                                      Utils.emptyList(token.tokenAdmins);
-                if (Array.size(items) > 0){
-                    for(item in RevIter.fromArray(items)){
-                          token.feeWhitelistedPrincipals:= List.push(item, token.tokenAdmins);
-                    };
-                };
-                return #ok("");                     
-                    };                                    
-                    case (_){
-                        return #err("Could not convert Token admin principals information.");
-                    };
-                };                    
-            }; 
-            case (#tokenTransactionsBuffer){
+            case (#tokenTransactionsBuffer) {
 
-                if (restoreInfo.isFirstChunk == true){
+                if (restoreInfo.isFirstChunk == true) {
                     StableBuffer.clear(token.transactions);
                 };
 
-                let transactionBufferOrNull: ?[T.TransactionTypes.Transaction]= Nat8ArrayToTransactionBuffer(restoreInfo.bytes);
-                switch(transactionBufferOrNull){
-                    case (?transactionBuffer){
-                        for(element in Iter.fromArray(transactionBuffer)){                        
-                            StableBuffer.add(token.transactions, element);                  
+                let transactionBufferOrNull : ?[T.TransactionTypes.Transaction] = Nat8ArrayToTransactionBuffer(restoreInfo.bytes);
+                switch (transactionBufferOrNull) {
+                    case (?transactionBuffer) {
+                        for (element in Iter.fromArray(transactionBuffer)) {
+                            StableBuffer.add(token.transactions, element);
                         };
                         return #ok("");
-                    };                                    
-                    case (_){
+                    };
+                    case (_) {
                         return #err("Could not convert Token transaction buffer information.");
                     };
-                };                                                                                   
+                };
             };
-            case (_)
-            {
+            case (_) {
                 return #err("Unknown datatype in restoreInfo specified.");
             };
         };
@@ -139,48 +100,43 @@ module {
 
     public func backup(
         memoryController : MemoryController.MemoryController,
-        token:T.TokenTypes.TokenData,        
-        backupParameter:TypesBackupRestore.BackupParameter
-        ):Result.Result<(isComplete:Bool, data:[Nat8]), Text>{
+        token : T.TokenTypes.TokenData,
+        backupParameter : TypesBackupRestore.BackupParameter,
+    ) : Result.Result<(isComplete : Bool, data : [Nat8]), Text> {
 
-        var currentIndex:Nat = Option.get(backupParameter.currentIndex, 0);
-        var chunkCount:Nat = Option.get(backupParameter.chunkCount, 0);
-      
-        switch(backupParameter.backupType){
+        var currentIndex : Nat = Option.get(backupParameter.currentIndex, 0);
+        var chunkCount : Nat = Option.get(backupParameter.chunkCount, 0);
 
-            case (#tokenCommonData){
+        switch (backupParameter.backupType) {
+
+            case (#tokenCommonData) {
                 // return token maindata as Nat8 array
-                let result:(Bool, [Nat8]) = (true,Nat8ArrayFromTokenMainData(token));
+                let result : (Bool, [Nat8]) = (true, Nat8ArrayFromTokenMainData(token));
                 return #ok(result);
             };
-            case (#initiateBackup){
-                //memoryController.Model.Settings.backupStateInfo.state := #initiated(Time.now());
-
-            };        
-            case (#tokenAccounts){                                               
-                let result:(Bool, [Nat8]) = Nat8ArrayFromAccountHolders(token,currentIndex, chunkCount);
+            case (#tokenAccounts) {
+                let result : (Bool, [Nat8]) = Nat8ArrayFromAccountHolders(token, currentIndex, chunkCount);
                 return #ok(result);
 
             };
-            case (#tokenFeeWhitelistedPrincipals)
-            {                                
-                let result:(Bool, [Nat8]) = (true,Nat8ArrayFromTokenFeeWhiteListedPrincipals(token));
+            // case (#tokenFeeWhitelistedPrincipals)
+            // {
+            //     let result:(Bool, [Nat8]) = (true,Nat8ArrayFromTokenFeeWhiteListedPrincipals(token));
+            //     return #ok(result);
+            // };
+
+            // case (#tokenTokenAdmins){
+
+            //     let result:(Bool, [Nat8]) = (true,Nat8ArrayFromAdmins(token));
+            //     return #ok(result);
+            // };
+            case (#tokenTransactionsBuffer) {
+
+                let result : (Bool, [Nat8]) = Nat8ArrayFromTransactionBuffer(token, currentIndex, chunkCount);
                 return #ok(result);
             };
-               
-            case (#tokenTokenAdmins){
 
-                let result:(Bool, [Nat8]) = (true,Nat8ArrayFromAdmins(token));
-                return #ok(result);
-            }; 
-            case (#tokenTransactionsBuffer){
-
-                let result:(Bool, [Nat8]) = Nat8ArrayFromTransactionBuffer(token, currentIndex, chunkCount);
-                return #ok(result);
-            };
-            
-            case (_)
-            {
+            case (_) {
                 return #err("error. backup type not recognized.");
             };
         };
@@ -188,110 +144,93 @@ module {
         return #err("error");
     };
 
-
-    private func Nat8ArrayFromTokenMainData(token:T.TokenTypes.TokenData):[Nat8]{
+    private func Nat8ArrayFromTokenMainData(token : T.TokenTypes.TokenData) : [Nat8] {
         Converters.ConvertToTokenMainDataNat8Array(token);
     };
 
-    private func RestoreFromTokenMainDataNat8Array(token:T.TokenTypes.TokenData, array:[Nat8]):Result.Result<Text,Text>{
+    private func RestoreFromTokenMainDataNat8Array(token : T.TokenTypes.TokenData, array : [Nat8]) : Result.Result<Text, Text> {
 
-        if (Array.size(array) == 0){
+        if (Array.size(array) == 0) {
             return #err("No token data found in Nat8 array");
         };
 
-         let commDataOrNull:?TypesBackupRestore.BackupCommonTokenData = Converters.ConvertToTokenMainDataFromNat8Array(array);
-                switch(commDataOrNull){
-                    case (?commonData){
-                        token.name:= commonData.name;   
-                        token.symbol := commonData.symbol;       
-                        token.decimals := commonData.decimals;     
-                        token.defaultFee := commonData.defaultFee;
-                        token.logo := commonData.logo;    
-                        token.max_supply := commonData.max_supply;
-                        token.minted_tokens := commonData.minted_tokens; 
-                        token.minting_allowed := commonData.minting_allowed;
-                        token.burned_tokens := commonData.burned_tokens;
-                        token.minting_account  := commonData.minting_account;                         
-                        token.transaction_window := commonData.transaction_window;        
-                        token.min_burn_amount := commonData.min_burn_amount;      
-                        token.permitted_drift := commonData.permitted_drift;
-                        token.feeWhitelistedPrincipals := commonData.feeWhitelistedPrincipals;
-                        token.tokenAdmins := commonData.tokenAdmins;
+        let commDataOrNull : ?TypesBackupRestore.BackupCommonTokenData = Converters.ConvertToTokenMainDataFromNat8Array(array);
+        switch (commDataOrNull) {
+            case (?commonData) {
+                token.name := commonData.name;
+                token.symbol := commonData.symbol;
+                token.decimals := commonData.decimals;
+                token.defaultFee := commonData.defaultFee;
+                token.logo := commonData.logo;
+                token.max_supply := commonData.max_supply;
+                token.minted_tokens := commonData.minted_tokens;
+                token.minting_allowed := commonData.minting_allowed;
+                token.burned_tokens := commonData.burned_tokens;
+                token.minting_account := commonData.minting_account;
+                token.transaction_window := commonData.transaction_window;
+                token.min_burn_amount := commonData.min_burn_amount;
+                token.permitted_drift := commonData.permitted_drift;
 
-                        // restore supported standards
-                        SB.clear(token.supported_standards);
-                        for (element in Iter.fromArray(commonData.supported_standards)){
-                             SB.add(token.supported_standards, element);
-                        };
+                Utils.emptyList(token.feeWhitelistedPrincipals);
+                token.feeWhitelistedPrincipals := commonData.feeWhitelistedPrincipals;
 
-                        return #ok("");
-                    };
-                    case (_){
-                        return #err("Deserializing TokenCommonData failed.");
-                    };
-                }        
+                Utils.emptyList(token.tokenAdmins);
+                token.tokenAdmins := commonData.tokenAdmins;
+
+                // restore supported standards
+                SB.clear(token.supported_standards);
+                for (element in Iter.fromArray(commonData.supported_standards)) {
+                    SB.add(token.supported_standards, element);
+                };
+
+                return #ok("");
+            };
+            case (_) {
+                return #err("Deserializing TokenCommonData failed.");
+            };
+        };
     };
 
-    private func Nat8ArrayFromAccountHolders(token:T.TokenTypes.TokenData, currentIndex:Nat, chunkCount:Nat):(isLastChunk:Bool,[Nat8]){
+    private func Nat8ArrayFromAccountHolders(token : T.TokenTypes.TokenData, currentIndex : Nat, chunkCount : Nat) : (isLastChunk : Bool, [Nat8]) {
 
-        let holders:[T.AccountTypes.AccountBalanceInfo] = 
-                SlicesImplementation.get_holders(
-                    token, Option.make(currentIndex), 
-                    Option.make(chunkCount)
-                );
-        var isLastChunk:Bool = false;
-        if (Array.size(holders) < chunkCount){
-            isLastChunk:=true;
+        let holders : [T.AccountTypes.AccountBalanceInfo] = SlicesImplementation.get_holders(
+            token,
+            Option.make(currentIndex),
+            Option.make(chunkCount),
+        );
+        var isLastChunk : Bool = false;
+        if (Array.size(holders) < chunkCount) {
+            isLastChunk := true;
         };
         (isLastChunk, Converters.ConvertAccountHoldersToNat8Array(holders));
     };
 
-    private func Nat8ArrayToAccountHolders(array:[Nat8]):?[T.AccountTypes.AccountBalanceInfo]{
+    private func Nat8ArrayToAccountHolders(array : [Nat8]) : ?[T.AccountTypes.AccountBalanceInfo] {
         Converters.ConvertToAccountHoldersFromNat8Array(array);
     };
 
-    private func Nat8ArrayFromTokenFeeWhiteListedPrincipals(token:T.TokenTypes.TokenData):[Nat8]{
-        Blob.toArray(to_candid(List.toArray<Principal>(token.feeWhitelistedPrincipals)));
-    };
+    private func Nat8ArrayFromTransactionBuffer(token : T.TokenTypes.TokenData, currentIndex : Nat, chunkCount : Nat) : (isLastChunk : Bool, [Nat8]) {
 
-    private func Nat8ArrayToTokenFeeWhiteListedPrincipals(array:[Nat8]):?[Principal]{
-         let resultOrNull:?[Principal] = from_candid(Blob.fromArray(array));
-         return resultOrNull;    
-    };
-
-
-    private func Nat8ArrayFromAdmins(token:T.TokenTypes.TokenData):[Nat8]{
-        Blob.toArray(to_candid(Account.list_admin_users(token)));
-    };
-
-    private func Nat8ArrayToTokenAdmins(array:[Nat8]):?[Principal]{        
-         let resultOrNull:?[Principal] = from_candid(Blob.fromArray(array));
-         return resultOrNull;        
-    };
-
-    private func Nat8ArrayFromTransactionBuffer(token:T.TokenTypes.TokenData,currentIndex:Nat, chunkCount:Nat):(isLastChunk:Bool,[Nat8]){
-
-         let transactions:[T.TransactionTypes.Transaction] = 
-                SlicesImplementation.get_internal_transactions(
-                    token, Option.make(currentIndex), 
-                    Option.make(chunkCount)
-                );
-        var isLastChunk:Bool = false;
-        if (Array.size(transactions) < chunkCount){
-            isLastChunk:=true;
+        let transactions : [T.TransactionTypes.Transaction] = SlicesImplementation.get_internal_transactions(
+            token,
+            Option.make(currentIndex),
+            Option.make(chunkCount),
+        );
+        var isLastChunk : Bool = false;
+        if (Array.size(transactions) < chunkCount) {
+            isLastChunk := true;
         };
-        (isLastChunk,Blob.toArray(to_candid(transactions)));
+        (isLastChunk, Blob.toArray(to_candid (transactions)));
     };
 
-    private func Nat8ArrayToTransactionBuffer(array:[Nat8]):?[T.TransactionTypes.Transaction]{        
-        
-        if (Array.size(array) == 0){
+    private func Nat8ArrayToTransactionBuffer(array : [Nat8]) : ?[T.TransactionTypes.Transaction] {
+
+        if (Array.size(array) == 0) {
             return Option.make([]);
         };
 
-         let resultOrNull:?[T.TransactionTypes.Transaction] = from_candid(Blob.fromArray(array));
-         return resultOrNull;       
+        let resultOrNull : ?[T.TransactionTypes.Transaction] = from_candid (Blob.fromArray(array));
+        return resultOrNull;
     };
-
 
 };

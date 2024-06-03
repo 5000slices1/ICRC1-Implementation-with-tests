@@ -8,6 +8,10 @@ import List "mo:base/List";
 import Itertools "mo:itertools/Iter";
 import Float "mo:base/Float";
 import Int "mo:base/Int";
+import Result "mo:base/Result";
+import Blob "mo:base/Blob";
+import Option "mo:base/Option";
+import Buffer "mo:base/Buffer";
 import ActorSpec "../utils/ActorSpec";
 import ICRC1 "../../../src/ICRC1/Modules/Token/Implementations/ICRC1.Implementation";
 import T "../../../src/ICRC1/Types/Types.All";
@@ -15,16 +19,16 @@ import U "../../../src/ICRC1/Modules/Token/Utils/Utils";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
 import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import Model "../../../src/ICRC1/Types/Types.Model";
+import MemoryController "../../../src/ICRC1/Modules/Token/MemoryController/MemoryController";
+import TypesBackupRestore "../../../src/ICRC1/Types/Types.BackupRestore";
+import SlicesImplementation "../../../src/ICRC1/Modules/Token/Implementations/SLICES.Implementation";
 
 module {
 
     private type Balance = T.Balance;
-
     private type Account = T.AccountTypes.Account;
-
     private type TokenData = T.TokenTypes.TokenData;
     private type InitArgs = T.TokenTypes.InitArgs;
-
     private type Transaction = T.TransactionTypes.Transaction;
     private type GetTransactionsRequest = T.TransactionTypes.GetTransactionsRequest;
     private type GetTransactionsResponse = T.TransactionTypes.GetTransactionsResponse;
@@ -58,6 +62,36 @@ module {
 
         let { SB } = U;
 
+        func create_test_accounts(numberOfAccounts : Nat) : [Account] {
+
+            let bufferNat8Array = Buffer.Buffer<Nat8>(1);
+            let principals = Array.tabulate<Account>(
+                numberOfAccounts,
+                func(i) {
+
+                    var num : Nat = i + 8191;
+                    bufferNat8Array.clear();
+                    var complete : Bool = false;
+                    while (complete == false) {
+                        let numberToTake = num % 128;
+
+                        bufferNat8Array.add(Nat8.fromNat(numberToTake));
+                        num := num / 128;
+                        if (num <= 0) {
+                            complete := true;
+                        };
+                    };
+
+                    let account : Account = {
+                        owner = Principal.fromBlob(Blob.fromArray(Buffer.toArray(bufferNat8Array)));
+                        subaccount = null;
+                    };
+                    return account;
+                },
+            );
+            return principals;
+        };
+
         func mock_tx(to : Account, index : Nat, fee : Nat) : Transaction {
             {
                 burn = null;
@@ -81,6 +115,11 @@ module {
 
         let user1 : Account = {
             owner = Principal.fromText("prb4z-5pc7u-zdfqi-cgv7o-fdyqf-n6afm-xh6hz-v4bk4-kpg3y-rvgxf-iae");
+            subaccount = null;
+        };
+
+        let user2 : Account = {
+            owner = Principal.fromText("ygyq4-mf2rf-qmcou-h24oc-qwqvv-gt6lp-ifvxd-zaw3i-celt7-blnoc-5ae");
             subaccount = null;
         };
 
@@ -205,7 +244,7 @@ module {
             true;
         };
 
-        func create_mints(token : TokenData, minting_principal : Principal, n : Nat, model:Model.Model) : async () {
+        func create_mints(token : TokenData, minting_principal : Principal, n : Nat, model : Model.Model) : async () {
             for (i in Itertools.range(0, n)) {
                 var res = await* ExtendedToken.mint(
                     token,
@@ -217,7 +256,7 @@ module {
                     },
                     minting_principal,
                     archive_canisterIds,
-                    model
+                    model,
                 );
             };
         };
@@ -236,7 +275,7 @@ module {
             minting_allowed = true;
         };
 
-        let defaultModel:Model.Model = Initializer.init_model();
+        let defaultModel : Model.Model = Initializer.init_model();
 
         return describe(
             "Extended Token Implementation Tests",
@@ -261,7 +300,7 @@ module {
                             mint_args,
                             args.minting_account.owner,
                             archive_canisterIds,
-                            defaultModel
+                            defaultModel,
                         );
 
                         assertAllTrue([
@@ -294,7 +333,7 @@ module {
                             mint_args,
                             args.minting_account.owner,
                             archive_canisterIds,
-                            defaultModel
+                            defaultModel,
                         );
 
                         assertAllTrue([
@@ -333,7 +372,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
-                                    defaultModel
+                                    defaultModel,
                                 );
 
                                 let burn_args : BurnArgs = {
@@ -346,7 +385,7 @@ module {
                                 let prev_balance = ICRC1.icrc1_balance_of(token, user1);
                                 let prev_total_supply = ICRC1.icrc1_total_supply(token);
 
-                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds,defaultModel);
+                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds, defaultModel);
 
                                 assertAllTrue([
                                     res == #Ok(1),
@@ -369,7 +408,7 @@ module {
                                     created_at_time = null;
                                 };
 
-                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds,defaultModel);
+                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds, defaultModel);
 
                                 assertAllTrue([
                                     res == #Err(
@@ -399,7 +438,7 @@ module {
                                     mint_args,
                                     args.minting_account.owner,
                                     archive_canisterIds,
-                                    defaultModel
+                                    defaultModel,
                                 );
 
                                 let burn_args : BurnArgs = {
@@ -409,7 +448,7 @@ module {
                                     created_at_time = null;
                                 };
 
-                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds,defaultModel);
+                                let res = await* ExtendedToken.burn(token, burn_args, user1.owner, archive_canisterIds, defaultModel);
                                 assertAllTrue([
                                     res == #Err(#BadBurn({ min_burn_amount = args.min_burn_amount }))
                                 ]);
@@ -427,7 +466,7 @@ module {
                                 let args = default_token_args;
                                 let token = Initializer.tokenInit(args);
 
-                                await create_mints(token, canister.owner, 4123,defaultModel);
+                                await create_mints(token, canister.owner, 4123, defaultModel);
                                 [
                                     it(
                                         "Archive has 4000 stored txs",
@@ -576,6 +615,276 @@ module {
                                         },
                                     ),
                                 ];
+                            },
+                        ),
+                    ],
+                ),
+
+                describe(
+                    "backup() and restore()",
+                    [
+                        it(
+                            "backup and restore Token common data",
+                            do {
+                                let args = default_token_args;
+
+                                let token : T.TokenTypes.TokenData = Initializer.tokenInit(args);
+                                let token_clone : T.TokenTypes.TokenData = Initializer.tokenInit(args);
+
+                                let model : Model.Model = Initializer.init_model();
+                                let memoryController : MemoryController.MemoryController = MemoryController.MemoryController(model);
+
+                                let backupParameter : TypesBackupRestore.BackupParameter = {
+                                    backupType : TypesBackupRestore.BackupType = #tokenCommonData;
+                                    currentIndex : ?Nat = null;
+                                    chunkCount : ?Nat = null;
+                                };
+
+                                // get backup from token main data
+                                let backupResult : Result.Result<(isComplete : Bool, data : [Nat8]), Text> = ExtendedToken.backup(memoryController, token, backupParameter);
+
+                                var failed : Bool = false;
+                                var dataArray : [Nat8] = [];
+                                switch (backupResult) {
+                                    case (#ok(isComplete : Bool, data : [Nat8])) {
+
+                                        dataArray := data;
+                                    };
+                                    case (#err(text)) {
+                                        failed := true;
+                                        Debug.print("Error. Could not serialize token main data");
+                                    };
+                                };
+
+                                // change token data
+                                if (failed == false) {
+                                    token.name := "Noname";
+                                    token.symbol := "newSymbol";
+                                    token.decimals := 2;
+                                    token.defaultFee := 1234;
+                                    token.logo := "MyLogo";
+                                    token.max_supply := 10000;
+                                    token.minted_tokens := 222;
+                                    token.minting_allowed := false;
+                                    token.burned_tokens := 123;
+                                    token.minting_account := user2;
+                                    SB.clear(token.supported_standards);
+                                    token.transaction_window := 222;
+                                    token.min_burn_amount := 2;
+                                    token.permitted_drift := 1000;
+
+                                    ignore SlicesImplementation.admin_add_admin_user(canister.owner, user2.owner, token);
+                                    ignore SlicesImplementation.feewhitelisting_add_principal(canister.owner, user2.owner, token);
+                                };
+
+                                // restore from backup
+                                if (failed == false) {
+                                    let restoreInfo : TypesBackupRestore.RestoreInfo = {
+                                        dataType = #tokenCommonData;
+                                        isFirstChunk = true;
+                                        bytes = dataArray;
+                                    };
+                                    let result : Result.Result<Text, Text> = ExtendedToken.restore(memoryController, token, restoreInfo);
+
+                                    switch (result) {
+                                        case (#ok(value)) {
+                                            // do nothing
+                                        };
+                                        case (#err(error)) {
+                                            failed := true;
+                                        };
+                                    };
+                                };
+
+                                assertAllTrue([
+                                    failed == false,
+                                    token.name == token_clone.name,
+                                    token.symbol == token_clone.symbol,
+                                    token.decimals == token_clone.decimals,
+                                    token.defaultFee == token_clone.defaultFee,
+                                    token.logo == token_clone.logo,
+                                    token.max_supply == token_clone.max_supply,
+                                    token.minted_tokens == token_clone.minted_tokens,
+                                    token.minting_allowed == token_clone.minting_allowed,
+                                    token.burned_tokens == token_clone.burned_tokens,
+                                    token.minting_account == token_clone.minting_account,
+                                    SB.toArray(token.supported_standards) == SB.toArray(token_clone.supported_standards),
+                                    token.transaction_window == token_clone.transaction_window,
+                                    token.min_burn_amount == token_clone.min_burn_amount,
+                                    token.permitted_drift == token_clone.permitted_drift,
+                                    SlicesImplementation.feewhitelisting_get_list(token) == SlicesImplementation.feewhitelisting_get_list(token_clone),
+                                    SlicesImplementation.list_admin_users(token) == SlicesImplementation.list_admin_users(token_clone),
+
+                                ]);
+
+                            },
+                        ),
+                        it(
+                            "backup and restore accounts",
+                            do {
+
+                                let args = {
+                                    default_token_args with max_supply = 1_000_000_000_000_000 * (10 ** 8)
+                                };
+
+                                let token : T.TokenTypes.TokenData = Initializer.tokenInit(args);
+                                let token_clone : T.TokenTypes.TokenData = Initializer.tokenInit(args);
+
+                                let model : Model.Model = Initializer.init_model();
+                                let memoryController : MemoryController.MemoryController = MemoryController.MemoryController(model);
+
+                                // create many accounts
+                                let manyAccounts : [Account] = create_test_accounts(7000);
+
+                                // mint some tokens
+
+                                let mint_args : Mint = {
+                                    to = user1;
+                                    amount = 100_000_000 * (10 ** Nat8.toNat(args.decimals));
+                                    memo = null;
+                                    created_at_time = null;
+                                };
+
+                                ignore await* ExtendedToken.mint(
+                                    token,
+                                    mint_args,
+                                    args.minting_account.owner,
+                                    archive_canisterIds,
+                                    defaultModel,
+                                );
+
+                                ignore await* ExtendedToken.mint(
+                                    token_clone,
+                                    mint_args,
+                                    args.minting_account.owner,
+                                    archive_canisterIds,
+                                    defaultModel,
+                                );
+
+                                // Add some transactions
+
+                                for (i in Iter.range(0, 5200)) {
+                                    let account = manyAccounts[i];
+
+                                    let transfer_args : TransferArgs = {
+                                        from_subaccount = user1.subaccount;
+                                        to = account;
+                                        amount = 50 * (10 ** Nat8.toNat(token.decimals));
+                                        fee = ?token.defaultFee;
+                                        memo = null;
+                                        created_at_time = null;
+                                    };
+                                    ignore await* ICRC1.icrc1_transfer(
+                                        token,
+                                        transfer_args,
+                                        user1.owner,
+                                        archive_canisterIds,
+                                        defaultModel,
+                                    );
+
+                                    ignore await* ICRC1.icrc1_transfer(
+                                        token_clone,
+                                        transfer_args,
+                                        user1.owner,
+                                        archive_canisterIds,
+                                        defaultModel,
+                                    );
+                                };
+
+                                let holdersCount = SlicesImplementation.get_holders_count(token);
+                                var batchSize = 100;
+                                let batchCount = holdersCount / batchSize;
+
+                                // -----------------------------------------------------------------------
+                                // Create backup
+                                var backupComplete = false;
+                                var index = 0;
+
+                                let bufferNat8Array = Buffer.Buffer<[Nat8]>(batchCount);
+                                var failed : Bool = false;
+                                var counter = 0;
+                                while (backupComplete == false) {
+
+                                    //Debug.print("counter = " # debug_show(counter));
+                                    counter += 1;
+
+                                    let backupParameter : TypesBackupRestore.BackupParameter = {
+                                        backupType : TypesBackupRestore.BackupType = #tokenAccounts;
+                                        currentIndex : ?Nat = Option.make(index);
+                                        chunkCount : ?Nat = ?batchSize;
+                                    };
+
+                                    let backupResult : Result.Result<(isComplete : Bool, data : [Nat8]), Text> = ExtendedToken.backup(memoryController, token, backupParameter);
+
+                                    switch (backupResult) {
+                                        case (#ok(isComplete, data)) {
+                                            bufferNat8Array.add(data);
+                                            if (isComplete == true) {
+                                                backupComplete := true;
+                                            };
+                                        };
+                                        case (#err(text)) {
+                                            Debug.print("Error. Could not serialize token main data");
+                                            Debug.print("Error text = " #text);
+                                            backupComplete := true;
+                                            failed := true;
+                                        };
+                                    };
+                                    index := index + batchSize;
+                                };
+
+                                // -----------------------------------------------------------------------
+
+                                // change token data
+                                if (failed == false) {
+
+                                    // Create some more transactions
+                                    // These additional transactions should be undone after restoring is complete.(This is the test)
+
+                                    for (account in Iter.fromArray(manyAccounts)) {
+
+                                        let transfer_args : TransferArgs = {
+                                            from_subaccount = user1.subaccount;
+                                            to = account;
+                                            amount = 50 * (10 ** Nat8.toNat(token.decimals));
+                                            fee = ?token.defaultFee;
+                                            memo = null;
+                                            created_at_time = null;
+                                        };
+                                        ignore await* ICRC1.icrc1_transfer(
+                                            token,
+                                            transfer_args,
+                                            user1.owner,
+                                            archive_canisterIds,
+                                            defaultModel,
+                                        );
+                                    };
+                                };
+
+                                // restore from backup
+                                if (failed == false) {
+
+                                    var isFirst = true;
+                                    Buffer.iterate<[Nat8]>(
+                                        bufferNat8Array,
+                                        func(x) {
+
+                                            let restoreInfo : TypesBackupRestore.RestoreInfo = {
+                                                dataType = #tokenAccounts;
+                                                isFirstChunk = isFirst;
+                                                bytes = x;
+                                            };
+                                            ignore ExtendedToken.restore(memoryController, token, restoreInfo);
+                                            isFirst := false;
+                                        },
+                                    );
+                                };
+
+                                assertAllTrue([
+                                    failed == false,
+                                    SlicesImplementation.get_holders(token, null, null) == SlicesImplementation.get_holders(token_clone, null, null),
+                                ]);
+
                             },
                         ),
                     ],
