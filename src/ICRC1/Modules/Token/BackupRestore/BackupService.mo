@@ -119,17 +119,7 @@ module {
                 return #ok(result);
 
             };
-            // case (#tokenFeeWhitelistedPrincipals)
-            // {
-            //     let result:(Bool, [Nat8]) = (true,Nat8ArrayFromTokenFeeWhiteListedPrincipals(token));
-            //     return #ok(result);
-            // };
-
-            // case (#tokenTokenAdmins){
-
-            //     let result:(Bool, [Nat8]) = (true,Nat8ArrayFromAdmins(token));
-            //     return #ok(result);
-            // };
+           
             case (#tokenTransactionsBuffer) {
 
                 let result : (Bool, [Nat8]) = Nat8ArrayFromTransactionBuffer(token, currentIndex, chunkCount);
