@@ -120,13 +120,13 @@ module {
         supported_standards : StableBuffer<SupportedStandard>;
 
         /// The time window in which duplicate transactions are not allowed
-        transaction_window : Nat;
+        var transaction_window : Nat;
 
         /// The minimum amount of tokens that must be burned in a transaction
         var min_burn_amount : Balance;
 
         /// The allowed difference between the ledger time and the time of the device the transaction was created on
-        permitted_drift : Nat;
+        var permitted_drift : Nat;
 
         /// The recent transactions that have been processed by the ledger.
         /// Only the last 2000 transactions are stored before being archived.

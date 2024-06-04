@@ -11,7 +11,7 @@ import ExtendedTokenActorTest "ExtendedToken/ExtendedToken.ActorTest";
 actor {
 
     let test_modules = [
-        
+
         { function = ICRC1.test; description = "ICRC1.test" : Text },
         { function = ICRC2.test; description = "ICRC2.test" : Text },
         {
@@ -22,7 +22,7 @@ actor {
             function = ExtendedTokenActorTest.test;
             description = "ExtendedToken.test" : Text;
         },
-        
+
         { function = Archive.test; description = "Archive.test" : Text },
         { function = AccountTest.test; description = "Account.test" : Text }
 

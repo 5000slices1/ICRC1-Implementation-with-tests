@@ -14,6 +14,9 @@ import HashTable "mo:memory-hashtable";
 import { ConstantTypes } = "../../../Types/Types.All";
 import Account "../Account/Account";
 import Model "../../../Types/Types.Model";
+import TypesBackupRestore "../../../Types/Types.BackupRestore";
+
+
 
 module {
 
@@ -58,6 +61,10 @@ module {
                 var tokens_upscaling_timer_id:Nat = 0;
                 var tokens_downscaling_timer_id:Nat = 0;
                 var tokens_restore_data_timer_id:Nat = 0;
+
+                backupStateInfo:Model.BackupStateInfo = {
+                    var state:Model.BackupInitState = #idle;
+                };
             };
 
             databaseStorages : Model.DatabaseStorages = {
@@ -111,8 +118,8 @@ module {
         } = args;
 
         var _burned_tokens = 0;
-        var permitted_drift = 60_000_000_000; // 1 minute
-        var transaction_window = 86_400_000_000_000; //24 hours
+        var permitted_drift_value = 60_000_000_000; // 1 minute
+        var transaction_window_value = 86_400_000_000_000; //24 hours
 
         if (not Account.validate(minting_account)) {
             Debug.trap("minting_account is invalid");
@@ -161,8 +168,8 @@ module {
             metadata = init_metadata(args);
             supported_standards = init_standards();            
             transactions = SB.initPresized(ConstantTypes.MAX_TRANSACTIONS_IN_LEDGER);
-            permitted_drift;
-            transaction_window;
+            var permitted_drift = permitted_drift_value;
+            var transaction_window = transaction_window_value;
             archive = {
                 var canister = actor ("aaaaa-aa");
                 var stored_txs = 0;

@@ -11,7 +11,9 @@ import Utils "../Utils/Utils";
 import T "../../../Types/Types.All";
 import Account "../Account/Account";
 import MemoryController "../MemoryController/MemoryController";
-import {cancelTimer } = "mo:base/Timer";
+import { cancelTimer } = "mo:base/Timer";
+import Debug "mo:base/Debug";
+import StableBuffer "mo:StableBuffer/StableBuffer";
 
 /// Slices Token implementations
 /// ( == functions needed for the future Slices-apps )
@@ -35,8 +37,7 @@ module {
     private type TransactionRange = T.TransactionTypes.TransactionRange;
     private type ArchivedTransaction = T.TransactionTypes.ArchivedTransaction;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
-    
- 
+
     public func list_admin_users(token : TokenData) : [Principal] {
         Account.list_admin_users(token : TokenData);
     };
@@ -64,7 +65,9 @@ module {
             return [];
         };
         let maxNumbersOfHoldersToReturn : Nat = 5000;
+
         var countToUse : Nat = Nat.min(Nat.min(countValue, size -indexValue), maxNumbersOfHoldersToReturn);
+
         let defaultAccount : T.AccountTypes.Account = {
             owner = Principal.fromText("aaaaa-aa");
             subaccount = null;
@@ -81,6 +84,7 @@ module {
         var resultIter = Iter.fromList<T.AccountTypes.AccountBalanceInfo>(resultList);
 
         for ((k : Blob, v : T.CommonTypes.Balance) in iter) {
+
             let account : ?T.AccountTypes.Account = Account.decode(k);
             let balance : Nat = v;
             let newItem : T.AccountTypes.AccountBalanceInfo = {
@@ -148,10 +152,50 @@ module {
         return List.toArray<Principal>(token.feeWhitelistedPrincipals);
     };
 
+    /// Returns array of the transactions stored on the main-token (not went into archive yet)
+    /// This method is only used for the backup/restoring function
+    public func get_internal_transactions(token : TokenData, index : ?Nat, count : ?Nat) : [Transaction] {
+
+        let size : Nat = StableBuffer.size(token.transactions);
+
+        let indexValue : Nat = switch (index) {
+            case (?index) index;
+            case (null) 0;
+        };
+
+        let countValue : Nat = switch (count) {
+            case (?count) count;
+            case (null) size;
+        };
+
+        if (indexValue >= size) {
+            return [];
+        };
+        let maxNumbersToReturn : Nat = 5000;
+        var countToUse : Nat = Nat.min(Nat.min(countValue, size -indexValue), maxNumbersToReturn);
+
+        var iter = StableBuffer.vals<Transaction>(token.transactions);
+
+        //Because of reverse order:
+        let revIndex : Nat = size - (indexValue + countToUse);
+
+        iter := Itertools.skip(iter, revIndex);
+        iter := Itertools.take(iter, countToUse);
+
+        var resultList : List.List<Transaction> = List.nil<Transaction>();
+        var resultIter = Iter.fromList<Transaction>(resultList);
+
+        for (transActionItem in iter) {
+            resultIter := Itertools.prepend<Transaction>(transActionItem, resultIter);
+        };
+
+        return Iter.toArray<Transaction>(resultIter);
+    };
+
     // --------------------------------------------------------------------------------
     // Set or Update values
 
-   public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
+    public func admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
         Account.admin_add_admin_user(caller : Principal, principalToAddAsAdmin : Principal, token : TokenData);
     };
     public func admin_remove_admin_user(caller : Principal, principalToRemoveAsAdmin : Principal, token : TokenData) : Result.Result<Text, Text> {
@@ -191,12 +235,11 @@ module {
         return #ok("The principal is not fee white listed. Nothing to remove.");
     };
 
-
     public func up_or_down_scale_token_internal(
-        numberOfDecimalPlaces : Nat8, 
+        numberOfDecimalPlaces : Nat8,
         isUpscaling : Bool,
         token : TokenData,
-        memoryController : MemoryController.MemoryController
+        memoryController : MemoryController.MemoryController,
     ) : async () {
 
         // First cancel the timer
@@ -208,7 +251,7 @@ module {
         memoryController.model.settings.token_operations_are_paused := false;
 
         await up_or_down_scale_token_directly_internal(numberOfDecimalPlaces, isUpscaling, token);
-               
+
         // Set upscale mode to normal again
         if (isUpscaling == true) {
             memoryController.model.settings.tokens_upscaling_mode := #idle;
@@ -219,29 +262,26 @@ module {
     };
 
     // We will need this function for the tests, therefore this function was extracted
-     public func up_or_down_scale_token_directly_internal(
-        numberOfDecimalPlaces : Nat8, 
+    public func up_or_down_scale_token_directly_internal(
+        numberOfDecimalPlaces : Nat8,
         isUpscaling : Bool,
         token : TokenData,
     ) : async () {
 
-
         // Now do the upscaling
         let factor : Nat = Nat.pow(10, Nat8.toNat(numberOfDecimalPlaces));
-        
 
         if (isUpscaling == true) {
             token.max_supply *= factor;
-            token.minted_tokens *=  factor;
+            token.minted_tokens *= factor;
             token.burned_tokens *= factor;
 
         } else {
-            token.max_supply /=  factor;
+            token.max_supply /= factor;
             token.minted_tokens /= factor;
             token.burned_tokens /= factor;
         };
 
-        
         var iter = Trie.iter(token.accounts.trie);
         var encodedAccounts : List.List<Blob> = List.nil<Blob>();
         for ((encodedAccount : Blob, balance : T.CommonTypes.Balance) in iter) {
@@ -273,7 +313,6 @@ module {
 
         };
     };
-
 
     // --------------------------------------------------------------------------------
 

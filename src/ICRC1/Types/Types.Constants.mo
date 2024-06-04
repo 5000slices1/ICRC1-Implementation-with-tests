@@ -17,21 +17,14 @@ module {
 
     //Amount of cycles to fill up
     public let ARCHIVE_CYCLES_AUTOREFILL : Nat = 400_000_000_000;
-
-//TODO: undo
-    //public let ARCHIVE_MAX_MEMORY:Nat = 10240; // approx 10 kb
+    
     public let ARCHIVE_MAX_MEMORY:Nat = 27917287424; // approx 26 GiB
     public let ARCHIVE_MAX_HEAP_SIZE:Nat = 2018634629; // approx 1.88 GiB
 
-
     ///Number of transactions to keep in token-cache until they are transfered into archive-canister
     public let MAX_TRANSACTIONS_IN_LEDGER : Nat = 2000;
-    //TODO: undo
-    //public let MAX_TRANSACTIONS_IN_LEDGER:Nat = 2;
-
+    
     ///The maximum number of transactions returned by request of 'get_transactions'
     public let MAX_TRANSACTIONS_PER_REQUEST : Nat = 5000;
-
-
 
 };

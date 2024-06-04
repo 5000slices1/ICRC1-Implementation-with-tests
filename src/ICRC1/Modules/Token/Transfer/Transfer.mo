@@ -32,9 +32,8 @@ module {
 
     /// Checks if the `created_at_time` of a transfer request is before the accepted time range
     public func is_too_old(token : TokenData, created_at_time : Nat64) : Bool {
-        let { permitted_drift; transaction_window } = token;
-
-        let lower_bound = Time.now() - transaction_window - permitted_drift;
+        
+        let lower_bound = Time.now() - token.transaction_window - token.permitted_drift;
         Nat64.toNat(created_at_time) < lower_bound;
     };
 

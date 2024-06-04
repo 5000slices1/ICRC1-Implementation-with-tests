@@ -23,6 +23,7 @@ module {
     private type SupportedStandard = T.TokenTypes.SupportedStandard;
     private type TokenData = T.TokenTypes.TokenData;
     private type MetaDatum = T.TokenTypes.MetaDatum;
+    private type Transaction = T.TransactionTypes.Transaction;
 
     /// Retrieve the name of the token
     public func icrc1_name(token : TokenData) : Text {
@@ -164,7 +165,7 @@ module {
 
         // store transaction
         let index = SB.size(token.transactions) + token.archive.stored_txs;
-        let tx = Utils.req_to_tx(tx_req, index);
+        let tx:Transaction  = Utils.req_to_tx(tx_req, index);
         SB.add(token.transactions, tx);
 
         // transfer transaction to archive if necessary

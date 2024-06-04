@@ -1,22 +1,29 @@
 import T "../../Types/Types.All";
-import Model "../../Types/Types.Model";
+import TypesModel "../../Types/Types.Model";
 import Debug "mo:base/Debug";
 import Cycles "mo:base/ExperimentalCycles";
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
+import Blob "mo:base/Blob";
+import Array "mo:base/Array";
 import Itertools "mo:itertools/Iter";
-import Constants "../../Types/Types.Constants";
+import TypesConstants "../../Types/Types.Constants";
 import Account "../Token/Account/Account";
 import Utils "../Token/Utils/Utils";
-import TokenTypes "../../Types/Types.Token";
+import TypesToken "../../Types/Types.Token";
+import TypesBackup "../../Types/Types.BackupRestore";
+import TypesAccount "../../Types/Types.Account";
+import TypesCommon "../../Types/Types.Common";
+
 
 module {
 
-    private type TokenData = TokenTypes.TokenData;
+    private type TokenData = TypesToken.TokenData;
+    let { SB } = Utils;
 
     public func ConvertTokenInitArgs(
         init_arguments : ?T.TokenTypes.TokenInitArgs,
-        model : Model.Model,
+        model : TypesModel.Model,
         canisterOwner : Principal,
     ) : ?T.TokenTypes.InitArgs {
         if (init_arguments == null) {
@@ -65,9 +72,9 @@ module {
 
             //Now check the balance of cycles available:
             let amount = Cycles.balance();
-            if (amount < Constants.TOKEN_INITIAL_CYCLES_REQUIRED) {
-                let missingBalance : Nat = Constants.TOKEN_INITIAL_CYCLES_REQUIRED - amount;
-                let infoText : Text = "\r\nERROR! At least " #debug_show (Constants.TOKEN_INITIAL_DEPLOYMENT_CYCLES_REQUIRED)
+            if (amount < TypesConstants.TOKEN_INITIAL_CYCLES_REQUIRED) {
+                let missingBalance : Nat = TypesConstants.TOKEN_INITIAL_CYCLES_REQUIRED - amount;
+                let infoText : Text = "\r\nERROR! At least " #debug_show (TypesConstants.TOKEN_INITIAL_DEPLOYMENT_CYCLES_REQUIRED)
                 # " cycles are needed for deployment. \r\n "
                 # "- Available cycles: " #debug_show (amount) # "\r\n"
                 # "- Missing cycles: " #debug_show (missingBalance) # "\r\n"
@@ -134,5 +141,57 @@ module {
 
         return result;
     };
+
+    //--------------------------------------------------------------------------------
+    // Converters for backup and restore
+
+    public func ConvertToTokenMainDataNat8Array(token:T.TokenTypes.TokenData):[Nat8]{        
+        let resultAsType:TypesBackup.BackupCommonTokenData = {
+   
+            name : Text = token.name;   
+            symbol : Text = token.symbol;       
+            decimals : Nat8 = token.decimals;     
+            defaultFee : TypesCommon.Balance = token.defaultFee;
+            logo : Text = token.logo;    
+            max_supply : TypesCommon.Balance = token.max_supply;
+            minted_tokens : TypesCommon.Balance = token.minted_tokens; 
+            minting_allowed : Bool = token.minting_allowed;
+            burned_tokens : TypesCommon.Balance = token.burned_tokens;
+            minting_account : TypesAccount.Account = token.minting_account; 
+            supported_standards : [TypesToken.SupportedStandard] = SB.toArray(token.supported_standards);      
+            transaction_window : Nat = token.transaction_window;        
+            min_burn_amount : TypesCommon.Balance = token.min_burn_amount;      
+            permitted_drift : Nat = token.permitted_drift;
+            feeWhitelistedPrincipals : TypesAccount.PrincipalsWhitelistedFees = token.feeWhitelistedPrincipals;
+            tokenAdmins : TypesAccount.AdminPrincipals = token.tokenAdmins;
+                //transactions : [TypesTransaction.Transaction];       
+                //archive : ArchiveData;      
+                //accounts : AccountBalances;        
+        };
+
+        let resultAsBlob:Blob = to_candid(resultAsType);
+        return Blob.toArray(resultAsBlob);                 
+    };
+
+    public func ConvertToTokenMainDataFromNat8Array(array:[Nat8]):?TypesBackup.BackupCommonTokenData{
+        from_candid(Blob.fromArray(array));        
+    };
+
+    public func ConvertAccountHoldersToNat8Array(items:[T.AccountTypes.AccountBalanceInfo]):[Nat8]{
+        if (Array.size(items) == 0){
+            return [];
+        };
+        
+        return Blob.toArray(to_candid(items)); 
+    };
+
+    public func ConvertToAccountHoldersFromNat8Array(array:[Nat8]):?[T.AccountTypes.AccountBalanceInfo]{
+          let result:?[T.AccountTypes.AccountBalanceInfo] = from_candid(Blob.fromArray(array));  
+          return result;
+    };
+
+
+    //--------------------------------------------------------------------------------
+
 
 };

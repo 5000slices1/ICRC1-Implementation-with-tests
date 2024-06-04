@@ -2,11 +2,16 @@ import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
+import Result "mo:base/Result";
 import Utils "../Utils/Utils";
 import T "../../../Types/Types.All";
 import { ConstantTypes } = "../../../Types/Types.All";
 import ICRC1 "ICRC1.Implementation";
 import Model "../../../Types/Types.Model";
+import MemoryController "../../../Modules/Token/MemoryController/MemoryController";
+import TypesBackupRestore "../../../Types/Types.BackupRestore";
+import BackupService "../BackupRestore/BackupService";
+
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)
@@ -181,6 +186,25 @@ module {
         };
     };
 
+    public func backup(
+        memoryController : MemoryController.MemoryController,
+        token:T.TokenTypes.TokenData,        
+        backupParameter:TypesBackupRestore.BackupParameter        
+        ):Result.Result<(isComplete:Bool, data:[Nat8]), Text>{
+            
+            BackupService.backup(memoryController,token,backupParameter);
+    };
+
+
+    public func restore( 
+        memoryController : MemoryController.MemoryController,
+        token:T.TokenTypes.TokenData,
+        restoreInfo:TypesBackupRestore.RestoreInfo):Result.Result<Text, Text>{
+            
+            BackupService.restore(memoryController, token, restoreInfo);
+    };
+
+   
     // --------------------------------------------------------------------------------
     // Set or Update values
 

@@ -304,6 +304,14 @@ module {
         token.burned_tokens += amount;
     };
 
+
+    public func emptyList(list: List.List<Any>){
+        
+        while (List.size(list) > 0){
+            ignore List.pop(list);
+        };
+    };
+
     /// Stable Buffer Module with some additional functions
     public let SB = {
         StableBuffer with slice = func<A>(buffer : StableBuffer.StableBuffer<A>, start : Nat, end : Nat) : [A] {
