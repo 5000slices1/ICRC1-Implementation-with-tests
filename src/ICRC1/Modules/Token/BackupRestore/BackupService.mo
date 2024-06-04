@@ -71,15 +71,12 @@ module {
             };
 
             case (#tokenTransactionsBuffer) {
-
-                if (restoreInfo.isFirstChunk == true) {
-                    StableBuffer.clear(token.transactions);
-                };
-
+                
+                StableBuffer.clear(token.transactions);
                 let transactionBufferOrNull : ?[T.TransactionTypes.Transaction] = Nat8ArrayToTransactionBuffer(restoreInfo.bytes);
                 switch (transactionBufferOrNull) {
                     case (?transactionBuffer) {
-                        for (element in Iter.fromArray(transactionBuffer)) {
+                        for (element in Iter.fromArray(transactionBuffer)) {                           
                             StableBuffer.add(token.transactions, element);
                         };
                         return #ok("");
@@ -122,8 +119,8 @@ module {
            
             case (#tokenTransactionsBuffer) {
 
-                let result : (Bool, [Nat8]) = Nat8ArrayFromTransactionBuffer(token, currentIndex, chunkCount);
-                return #ok(result);
+                let result : [Nat8] = Nat8ArrayFromTransactionBuffer(token);
+                return #ok(true,result);
             };
 
             case (_) {
@@ -199,18 +196,8 @@ module {
         Converters.ConvertToAccountHoldersFromNat8Array(array);
     };
 
-    private func Nat8ArrayFromTransactionBuffer(token : T.TokenTypes.TokenData, currentIndex : Nat, chunkCount : Nat) : (isLastChunk : Bool, [Nat8]) {
-
-        let transactions : [T.TransactionTypes.Transaction] = SlicesImplementation.get_internal_transactions(
-            token,
-            Option.make(currentIndex),
-            Option.make(chunkCount),
-        );
-        var isLastChunk : Bool = false;
-        if (Array.size(transactions) < chunkCount) {
-            isLastChunk := true;
-        };
-        (isLastChunk, Blob.toArray(to_candid (transactions)));
+    private func Nat8ArrayFromTransactionBuffer(token : T.TokenTypes.TokenData) : [Nat8] {      
+        Blob.toArray(to_candid (SB.toArray(token.transactions)));
     };
 
     private func Nat8ArrayToTransactionBuffer(array : [Nat8]) : ?[T.TransactionTypes.Transaction] {

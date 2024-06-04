@@ -27,8 +27,6 @@ import MemoryController "../Modules/Token/MemoryController/MemoryController";
 import Utils "../Modules/Token/Utils/Utils";
 import TypesBackupRestore "../Types/Types.BackupRestore";
 
-
-
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
 
@@ -258,7 +256,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
         model.settings.tokens_upscaling_timer_id := setTimer<system>(
             #seconds waitSecondsBeforeStartingTheScaling,
-            func<system>() : async () {                
+            func<system>() : async () {
                 await SlicesToken.up_or_down_scale_token_internal(numberOfDecimalPlaces, true, token, memoryController);
             },
         );
@@ -335,7 +333,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
         model.settings.tokens_downscaling_timer_id := setTimer<system>(
             #seconds waitSecondsBeforeStartingTheScaling,
-            func<system>() : async () {                
+            func<system>() : async () {
                 await SlicesToken.up_or_down_scale_token_internal(numberOfDecimalPlaces, false, token, memoryController);
             },
         );
@@ -347,26 +345,23 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // ------------------------------------------------------------------------------------------
     // Additional token functions
 
- 
-    public shared ({ caller }) func backup(backupParameter:TypesBackupRestore.BackupParameter)       
-    :async Result.Result<(isComplete:Bool, data:[Nat8]), Text>{
-            
-            if (Account.user_is_owner_or_admin(caller, token) == false) {
-                return #err("Unauthorized: Only minting account or admin can call this function..");
-            };
+    public shared ({ caller }) func backup(backupParameter : TypesBackupRestore.BackupParameter) : async Result.Result<(isComplete : Bool, data : [Nat8]), Text> {
 
-            ExtendedToken.backup(memoryController,token,backupParameter);
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
+            return #err("Unauthorized: Only minting account or admin can call this function..");
         };
 
-    public shared ({ caller }) func restore(restoreInfo:TypesBackupRestore.RestoreInfo)
-    :async Result.Result<Text, Text>{
+        ExtendedToken.backup(memoryController, token, backupParameter);
+    };
 
-            if (Account.user_is_owner_or_admin(caller, token) == false) {
-                return #err("Unauthorized: Only minting account or admin can call this function..");
-            };
+    public shared ({ caller }) func restore(restoreInfo : TypesBackupRestore.RestoreInfo) : async Result.Result<Text, Text> {
 
-            ExtendedToken.restore(memoryController, token, restoreInfo);
+        if (Account.user_is_owner_or_admin(caller, token) == false) {
+            return #err("Unauthorized: Only minting account or admin can call this function..");
         };
+
+        ExtendedToken.restore(memoryController, token, restoreInfo);
+    };
 
     /// Pause token operations. This is useful if we do some time consuming operations like update/upgrade or token scaling...
     public shared ({ caller }) func token_operation_pause<system>(minutes : Nat) : async Result.Result<Text, Text> {
@@ -596,7 +591,6 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         );
     };
 
-   
     private func cyclesAvailable() : Nat {
         Cycles.balance();
     };
@@ -710,12 +704,12 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #get_burned_amount : () -> ();
             #get_max_supply : () -> ();
             #backup : () -> (TypesBackupRestore.BackupParameter);
-            #restore:() -> Any;
+            #restore : () -> Any;
         };
     }) : Bool {
 
         if (model.settings.token_operations_are_paused) {
-            
+
             if (Account.user_is_owner_or_admin(caller, token) == false and caller != Principal.fromActor(this)) {
                 switch (msg) {
                     case ((#token_operation_continue _)) {
@@ -727,11 +721,11 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
                     case ((#token_operation_pause _)) {
                         return true;
                     };
-                    case ((#backup _)){
-                        return true;  
+                    case ((#backup _)) {
+                        return true;
                     };
-                    case ((#restore _)){
-                        return true;  
+                    case ((#restore _)) {
+                        return true;
                     };
                     case _ {
                         return false;

@@ -204,8 +204,7 @@ module {
             BackupService.restore(memoryController, token, restoreInfo);
     };
 
-
-
+   
     // --------------------------------------------------------------------------------
     // Set or Update values
 

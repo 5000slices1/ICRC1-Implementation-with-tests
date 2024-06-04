@@ -861,6 +861,8 @@ module {
                                     };
                                 };
 
+                                let isEqualBefore =  SlicesImplementation.get_holders(token, null, null) == SlicesImplementation.get_holders(token_clone, null, null);
+
                                 // restore from backup
                                 if (failed == false) {
 
@@ -880,9 +882,165 @@ module {
                                     );
                                 };
 
+                                let isEqualAfter =  SlicesImplementation.get_holders(token, null, null) == SlicesImplementation.get_holders(token_clone, null, null);
+
                                 assertAllTrue([
                                     failed == false,
-                                    SlicesImplementation.get_holders(token, null, null) == SlicesImplementation.get_holders(token_clone, null, null),
+                                    isEqualBefore == false,
+                                    isEqualAfter == true                                    
+                                ]);
+
+                            },
+                        ),
+
+
+                        it(
+                            "backup and restore transaction buffer",
+                            do {
+
+                                let args = {
+                                    default_token_args with max_supply = 1_000_000_000_000_000 * (10 ** 8)
+                                };
+
+                                let token : T.TokenTypes.TokenData = Initializer.tokenInit(args);
+                                let token_clone : T.TokenTypes.TokenData = Initializer.tokenInit(args);
+
+                                let model : Model.Model = Initializer.init_model();
+                                let memoryController : MemoryController.MemoryController = MemoryController.MemoryController(model);
+
+                                // create many accounts
+                                let manyAccounts : [Account] = create_test_accounts(3000);
+
+                                // mint some tokens
+
+                                let mint_args : Mint = {
+                                    to = user1;
+                                    amount = 100_000_000 * (10 ** Nat8.toNat(args.decimals));
+                                    memo = null;
+                                    created_at_time = null;
+                                };
+
+                                ignore await* ExtendedToken.mint(
+                                    token,
+                                    mint_args,
+                                    args.minting_account.owner,
+                                    archive_canisterIds,
+                                    defaultModel,
+                                );
+
+                                ignore await* ExtendedToken.mint(
+                                    token_clone,
+                                    mint_args,
+                                    args.minting_account.owner,
+                                    archive_canisterIds,
+                                    defaultModel,
+                                );
+
+                                // Add some transactions
+
+                                for (i in Iter.range(0, 1898)) {
+                                    let account = manyAccounts[i];
+
+                                    let transfer_args : TransferArgs = {
+                                        from_subaccount = user1.subaccount;
+                                        to = account;
+                                        amount = 50 * (10 ** Nat8.toNat(token.decimals));
+                                        fee = ?token.defaultFee;
+                                        memo = null;
+                                        created_at_time = null;
+                                    };
+                                    ignore await* ICRC1.icrc1_transfer(
+                                        token,
+                                        transfer_args,
+                                        user1.owner,
+                                        archive_canisterIds,
+                                        defaultModel,
+                                    );
+
+                                    ignore await* ICRC1.icrc1_transfer(
+                                        token_clone,
+                                        transfer_args,
+                                        user1.owner,
+                                        archive_canisterIds,
+                                        defaultModel,
+                                    );
+                                };
+                             
+                                var failed = false;
+                                // -----------------------------------------------------------------------
+                                // Create backup
+
+
+                                let backupParameter : TypesBackupRestore.BackupParameter = {
+                                        backupType : TypesBackupRestore.BackupType = #tokenTransactionsBuffer;
+                                        currentIndex : ?Nat = null;
+                                        chunkCount : ?Nat = null;
+                                };
+
+                                let backupResult : Result.Result<(isComplete : Bool, data : [Nat8]), Text> = 
+                                    ExtendedToken.backup(memoryController, token, backupParameter);
+                                
+                                var nat8Array:[Nat8] = [];
+
+                                switch(backupResult){
+                                    case (#ok(isComplete, dataArray)){
+                                        nat8Array:=dataArray;
+                                    };
+                                    case (#err(text)){
+                                        failed:=true;
+                                    };
+
+                                };
+                                
+                                // -----------------------------------------------------------------------
+
+                                // change token data
+                                if (failed == false) {
+
+                                    // Create some more transactions
+                                    // These additional transactions should be undone after restoring is complete.(This is the test)
+
+                                    for (m in Iter.range(2000,2300)) {
+
+                                        let accountItem = manyAccounts[m];
+
+                                        let transfer_args : TransferArgs = {
+                                            from_subaccount = user1.subaccount;
+                                            to = accountItem;
+                                            amount = 50 * (10 ** Nat8.toNat(token.decimals));
+                                            fee = ?token.defaultFee;
+                                            memo = null;
+                                            created_at_time = null;
+                                        };
+                                        ignore await* ICRC1.icrc1_transfer(
+                                            token,
+                                            transfer_args,
+                                            user1.owner,
+                                            archive_canisterIds,
+                                            defaultModel,
+                                        );
+                                    };
+                                };
+
+                                let isEqualBefore = SB.toArray(token.transactions) == SB.toArray(token_clone.transactions);
+
+                                // restore from backup
+                                if (failed == false) {
+
+                                    let restoreInfo : TypesBackupRestore.RestoreInfo = {
+                                                dataType = #tokenTransactionsBuffer;
+                                                isFirstChunk = true;
+                                                bytes = nat8Array;
+                                            };
+                                    let res = ExtendedToken.restore(memoryController, token, restoreInfo);                                    
+                                };
+                                
+                                let isEqualAfter = SB.toArray(token.transactions) == SB.toArray(token_clone.transactions);
+                          
+                                assertAllTrue([
+                                    failed == false,
+                                    isEqualBefore == false,
+                                    isEqualAfter == true
                                 ]);
 
                             },
