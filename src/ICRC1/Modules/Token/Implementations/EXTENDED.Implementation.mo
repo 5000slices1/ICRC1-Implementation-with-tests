@@ -11,7 +11,7 @@ import Model "../../../Types/Types.Model";
 import MemoryController "../../../Modules/Token/MemoryController/MemoryController";
 import TypesBackupRestore "../../../Types/Types.BackupRestore";
 import BackupService "../BackupRestore/BackupService";
-
+import Account "../Account/Account";
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)
@@ -210,13 +210,15 @@ module {
 
     /// Set the logo for the token
     public func set_logo(token : TokenData, logo : Text, caller : Principal) : async* SetTextParameterResult {
-        if (caller == token.minting_account.owner) {
+        
+        let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == true) {
             token.logo := logo;
         } else {
             return #Err(
                 #GenericError {
                     error_code = 401;
-                    message = "Unauthorized: Setting logo only allowed via minting account.";
+                    message = "Unauthorized: Setting logo only allowed via minting or admin account.";
                 }
             );
         };
@@ -225,7 +227,9 @@ module {
 
     /// Set the fee for each transfer
     public func set_fee(token : TokenData, fee : Nat, caller : Principal) : async* SetBalanceParameterResult {
-        if (caller == token.minting_account.owner) {
+        
+        let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == true) {
             if (fee >= 10_000 and fee <= 1_000_000_000) {
                 token.defaultFee := fee;
             } else {
@@ -240,7 +244,7 @@ module {
             return #Err(
                 #GenericError {
                     error_code = 401;
-                    message = "Unauthorized: Setting fee only allowed via minting account.";
+                    message = "Unauthorized: Setting fee only allowed via minting or admin account.";
                 }
             );
         };
@@ -249,7 +253,9 @@ module {
 
     /// Set the number of decimals specified for the token
     public func set_decimals(token : TokenData, decimals : Nat8, caller : Principal) : async* SetNat8ParameterResult {
-        if (caller == token.minting_account.owner) {
+        
+        let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == true) {
             if (decimals >= 2 and decimals <= 12) {
                 token.decimals := decimals;
             } else {
@@ -264,7 +270,7 @@ module {
             return #Err(
                 #GenericError {
                     error_code = 401;
-                    message = "Unauthorized: Setting decimals only allowed via minting account.";
+                    message = "Unauthorized: Setting decimals only allowed via minting or admin account.";
                 }
             );
         };
@@ -273,7 +279,9 @@ module {
 
     /// Set the minimum burn amount
     public func set_min_burn_amount(token : TokenData, min_burn_amount : Nat, caller : Principal) : async* SetBalanceParameterResult {
-        if (caller == token.minting_account.owner) {
+        
+        let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == true) {
             if (min_burn_amount >= 10_000 and min_burn_amount <= 1_000_000_000_000) {
                 token.min_burn_amount := min_burn_amount;
             } else {
@@ -288,7 +296,7 @@ module {
             return #Err(
                 #GenericError {
                     error_code = 401;
-                    message = "Unauthorized: Setting minimum burn amount only allowed via minting account.";
+                    message = "Unauthorized: Setting minimum burn amount only allowed via minting or admin account.";
                 }
             );
         };
@@ -297,13 +305,16 @@ module {
 
     /// Set the name of the token
     public func set_name(token : TokenData, name : Text, caller : Principal) : async* SetTextParameterResult {
-        if (caller == token.minting_account.owner) {
+        
+        
+        let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == true) {
             token.name := name;
         } else {
             return #Err(
                 #GenericError {
                     error_code = 401;
-                    message = "Unauthorized: Setting name only allowed via minting account.";
+                    message = "Unauthorized: Setting name only allowed via minting  or admin account.";
                 }
             );
         };
@@ -312,13 +323,14 @@ module {
 
     /// Set the symbol of the token
     public func set_symbol(token : TokenData, symbol : Text, caller : Principal) : async* SetTextParameterResult {
-        if (caller == token.minting_account.owner) {
+        let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
+        if (userIsAdminOrOwner == true) {
             token.symbol := symbol;
         } else {
             return #Err(
                 #GenericError {
                     error_code = 401;
-                    message = "Unauthorized: Setting symbol only allowed via minting account.";
+                    message = "Unauthorized: Setting symbol only allowed via minting or admin account.";
                 }
             );
         };

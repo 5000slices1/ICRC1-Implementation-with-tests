@@ -152,6 +152,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #err("Not enough free Cycles available");
         };
+        
         return SlicesToken.feewhitelisting_remove_principal(caller, principal, token);
     };
 
