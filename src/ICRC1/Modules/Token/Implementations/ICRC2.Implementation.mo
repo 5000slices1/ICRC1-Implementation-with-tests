@@ -145,8 +145,7 @@ module {
     ) : Result.Result<(), T.TransactionTypes.TransferFromError> {
 
         let { allowance; expires_at } = memoryController.databaseController.get_allowance(txf_req.from, txf_req.spender);
-        //Utils.get_allowance(token.approvals, txf_req.encoded);
-
+        
         let real_fee_to_be_used : Balance = Utils.get_real_token_fee_with_specified_defaultFee(
             txf_req.from.owner,
             txf_req.spender.owner,
