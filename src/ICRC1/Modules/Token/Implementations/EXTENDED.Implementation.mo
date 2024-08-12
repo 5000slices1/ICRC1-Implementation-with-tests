@@ -3,6 +3,9 @@ import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
+import Iter "mo:base/Iter";
+import Buffer "mo:base/Buffer";
+import Bool "mo:base/Bool";
 import Utils "../Utils/Utils";
 import T "../../../Types/Types.All";
 import { ConstantTypes } = "../../../Types/Types.All";
@@ -12,6 +15,9 @@ import MemoryController "../../../Modules/Token/MemoryController/MemoryControlle
 import TypesBackupRestore "../../../Types/Types.BackupRestore";
 import BackupService "../BackupRestore/BackupService";
 import Account "../Account/Account";
+import Option "mo:base/Option";
+import Debug "mo:base/Debug";
+
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)
@@ -73,7 +79,7 @@ module {
         args : Mint,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
-        model:Model.Model
+        model : Model.Model,
     ) : async* TransferResult {
 
         if (token.minting_allowed == false) {
@@ -99,7 +105,7 @@ module {
         args : BurnArgs,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
-        model:Model.Model
+        model : Model.Model,
     ) : async* TransferResult {
 
         let transfer_args : TransferArgs = {
@@ -126,6 +132,93 @@ module {
             let local_tx_index = (tx_index - archive.stored_txs) : Nat;
             SB.getOpt(transactions, local_tx_index);
         };
+    };
+
+    public func get_transactions_by_index_directly(token : TokenData, start : Nat, length : Nat) : async* [Transaction] {
+
+        let { archive; transactions } = token;
+        if (length <= 0) {
+            return [];
+        };
+
+        var lengthToUse = Nat.min(length, ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
+        let totalNumberOfTransactions = total_transactions(token);
+        if (start >= totalNumberOfTransactions) {
+            return [];
+        };
+
+        let localTransactionsCount = SB.size(transactions);
+
+        let txBuffer = Buffer.Buffer<Transaction>(lengthToUse);        
+        var firstIndexInCacheOrNull : ?Nat = null;
+        if (localTransactionsCount > 0) {
+
+            label internLoop for (index in Iter.range(0, localTransactionsCount)) {
+                
+                let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+                switch (cachedTxOrNull) {
+                    case (?cachedTx) {
+                        let index:Nat = cachedTx.index;
+                        if (index >= start and index < start + lengthToUse) {
+                            if (firstIndexInCacheOrNull == null) {
+                                firstIndexInCacheOrNull := Option.make(index);
+                            };
+                            txBuffer.insert(0, cachedTx);                            
+                        } else {
+                            break internLoop;
+                        };
+                    };
+                    case (_) {
+                        break internLoop;
+                    };
+
+                };
+            };
+        };
+        
+        let bufferSize = txBuffer.size();
+        Debug.print("Buffer size: " #debug_show(bufferSize));
+        Debug.print("Length to use: " #debug_show(lengthToUse));
+
+        let missingCount = (lengthToUse - bufferSize) : Nat;
+        Debug.print("Missing count: " #debug_show(missingCount));   
+        
+        if (missingCount > 0 and archive.stored_txs > 0) {
+
+            var archiveMustBeCalled : Bool = false;
+            Debug.print("First index in cache or null: " #debug_show(firstIndexInCacheOrNull));
+            Debug.print("Start: " #debug_show(start));
+
+            switch (firstIndexInCacheOrNull) {
+                case (?firstIndexInCache) {
+                    if (start < firstIndexInCache) {
+                        archiveMustBeCalled := true;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                    archiveMustBeCalled := true;
+                };
+            };
+            Debug.print("Archive must be called: " #debug_show(archiveMustBeCalled));
+
+            if (archiveMustBeCalled == true) {
+                let getTransactionRequest : GetTransactionsRequest = {
+                    start = start;
+                    length = missingCount;
+                };
+                let archivedTransactions = await archive.canister.get_transactions(getTransactionRequest);
+                if (Array.size(archivedTransactions.transactions) > 0) {
+                    let txFromArchive = Buffer.fromArray<Transaction>(
+                        Array.reverse<Transaction>(archivedTransactions.transactions)
+                    );
+
+                    txBuffer.append(txFromArchive);                                                     
+                };
+            };       
+        };
+       
+        return txBuffer.toArray();
     };
 
     /// Retrieves the transactions specified by the given range
@@ -188,29 +281,28 @@ module {
 
     public func backup(
         memoryController : MemoryController.MemoryController,
-        token:T.TokenTypes.TokenData,        
-        backupParameter:TypesBackupRestore.BackupParameter        
-        ):Result.Result<(isComplete:Bool, data:[Nat8]), Text>{
-            
-            BackupService.backup(memoryController,token,backupParameter);
+        token : T.TokenTypes.TokenData,
+        backupParameter : TypesBackupRestore.BackupParameter,
+    ) : Result.Result<(isComplete : Bool, data : [Nat8]), Text> {
+
+        BackupService.backup(memoryController, token, backupParameter);
     };
 
-
-    public func restore( 
+    public func restore(
         memoryController : MemoryController.MemoryController,
-        token:T.TokenTypes.TokenData,
-        restoreInfo:TypesBackupRestore.RestoreInfo):Result.Result<Text, Text>{
-            
-            BackupService.restore(memoryController, token, restoreInfo);
+        token : T.TokenTypes.TokenData,
+        restoreInfo : TypesBackupRestore.RestoreInfo,
+    ) : Result.Result<Text, Text> {
+
+        BackupService.restore(memoryController, token, restoreInfo);
     };
 
-   
     // --------------------------------------------------------------------------------
     // Set or Update values
 
     /// Set the logo for the token
     public func set_logo(token : TokenData, logo : Text, caller : Principal) : async* SetTextParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             token.logo := logo;
@@ -227,7 +319,7 @@ module {
 
     /// Set the fee for each transfer
     public func set_fee(token : TokenData, fee : Nat, caller : Principal) : async* SetBalanceParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (fee >= 10_000 and fee <= 1_000_000_000) {
@@ -253,7 +345,7 @@ module {
 
     /// Set the number of decimals specified for the token
     public func set_decimals(token : TokenData, decimals : Nat8, caller : Principal) : async* SetNat8ParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (decimals >= 2 and decimals <= 12) {
@@ -279,7 +371,7 @@ module {
 
     /// Set the minimum burn amount
     public func set_min_burn_amount(token : TokenData, min_burn_amount : Nat, caller : Principal) : async* SetBalanceParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (min_burn_amount >= 10_000 and min_burn_amount <= 1_000_000_000_000) {
@@ -305,8 +397,7 @@ module {
 
     /// Set the name of the token
     public func set_name(token : TokenData, name : Text, caller : Principal) : async* SetTextParameterResult {
-        
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             token.name := name;

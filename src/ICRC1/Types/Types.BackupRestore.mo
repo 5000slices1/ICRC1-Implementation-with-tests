@@ -1,4 +1,3 @@
-import Token "Types.Token";
 import CommonTypes "Types.Common";
 import TypesAccount "Types.Account";
 import TypesTransaction "Types.Transaction";
@@ -17,7 +16,7 @@ module {
     minting_allowed : Bool;
     burned_tokens : CommonTypes.Balance;
     minting_account : TypesAccount.Account;
-    supported_standards : [Token.SupportedStandard];
+    supported_standards : [CommonTypes.SupportedStandard];
     transaction_window : Nat;
     min_burn_amount : CommonTypes.Balance;
     permitted_drift : Nat;

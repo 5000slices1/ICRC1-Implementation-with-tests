@@ -10,20 +10,20 @@ import Blob "mo:base/Blob";
 import Itertools "mo:itertools/Iter";
 import StableTrieMap "mo:StableTrieMap";
 import HashList "mo:memory-hashlist";
+
 import HashTable "mo:memory-hashtable";
 import { ConstantTypes } = "../../../Types/Types.All";
 import Account "../Account/Account";
 import Model "../../../Types/Types.Model";
 import TypesBackupRestore "../../../Types/Types.BackupRestore";
-
-
+import CommonTypes "../../../Types/Types.Common";
 
 module {
 
     private type InitArgs = TokenTypes.InitArgs;
     private type MetaDatum = TokenTypes.MetaDatum;
     private let SB = StableBufferExtended.SB;
-    private type SupportedStandard = TokenTypes.SupportedStandard;
+    private type SupportedStandard = CommonTypes.SupportedStandard;
     private type Balance = T.Balance;
     private type Subaccount = T.AccountTypes.Subaccount;
     private type AccountBalances = T.AccountTypes.AccountBalances;

@@ -10,6 +10,7 @@ import Transfer "../Transfer/Transfer";
 import T "../../../Types/Types.All";
 import ArchiveHelper "../Archive/ArchiveHelper";
 import Model "../../../Types/Types.Model";
+import CommonTypes "../../../Types/Types.Common";
 
 module {
     let { SB } = Utils;
@@ -20,7 +21,7 @@ module {
     private type AccountBalances = T.AccountTypes.AccountBalances;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
     private type TransferResult = T.TransactionTypes.TransferResult;
-    private type SupportedStandard = T.TokenTypes.SupportedStandard;
+    private type SupportedStandard = CommonTypes.SupportedStandard;
     private type TokenData = T.TokenTypes.TokenData;
     private type MetaDatum = T.TokenTypes.MetaDatum;
     private type Transaction = T.TransactionTypes.Transaction;

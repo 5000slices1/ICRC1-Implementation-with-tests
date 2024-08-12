@@ -11,6 +11,7 @@ import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import TokenTypes "../../../src/ICRC1/Types/Types.Token";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
 import Model "../../../src/ICRC1/Types/Types.Model";
+import CommonTypes "../../../src/ICRC1/Types/Types.Common";
 
 module {
 
@@ -97,12 +98,12 @@ module {
 
                         let token = Initializer.tokenInit(args);
 
-                        let icrc1_standard : TokenTypes.SupportedStandard = {
+                        let icrc1_standard : CommonTypes.SupportedStandard = {
                             name = "ICRC-1";
                             url = "https://github.com/dfinity/ICRC-1";
                         };
 
-                        let icrc2_standard : TokenTypes.SupportedStandard = {
+                        let icrc2_standard : CommonTypes.SupportedStandard = {
                             name = "ICRC-2";
                             url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
                         };

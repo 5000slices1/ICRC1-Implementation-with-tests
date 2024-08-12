@@ -26,6 +26,8 @@ import Converters = "../Modules/Converters/Converters";
 import MemoryController "../Modules/Token/MemoryController/MemoryController";
 import Utils "../Modules/Token/Utils/Utils";
 import TypesBackupRestore "../Types/Types.BackupRestore";
+import CommonTypes "../Types/Types.Common";
+
 
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
@@ -79,7 +81,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         ICRC1.icrc1_balance_of(token, args);
     };
 
-    public shared query func icrc1_supported_standards() : async [T.TokenTypes.SupportedStandard] {
+    public shared query func icrc1_supported_standards() : async [CommonTypes.SupportedStandard] {
         ICRC1.icrc1_supported_standards(token);
     };
 
@@ -496,6 +498,10 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         ExtendedToken.get_transactions(token, req);
     };
 
+    public shared func get_transactionsByIndex(startIndex:Nat, length:Nat) : async [T.TransactionTypes.Transaction] {
+        await* ExtendedToken.get_transactions_by_index_directly(token, startIndex, length);
+    };
+
     // Additional functions not included in the ICRC1 standard
     public shared func get_transaction(i : T.TransactionTypes.TxIndex) : async ?T.TransactionTypes.Transaction {
         await* ExtendedToken.get_transaction(token, i);
@@ -542,7 +548,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     };
 
     /// Show the status of the auto fill up timer settings
-    public shared func auto_topup_cycles_status() : async T.CanisterTypes.CanisterAutoTopUpDataResponse {
+    public shared query func auto_topup_cycles_status() : async T.CanisterTypes.CanisterAutoTopUpDataResponse {
 
         let response : T.CanisterTypes.CanisterAutoTopUpDataResponse = {
             autoCyclesTopUpEnabled = model.settings.autoTopupData.autoCyclesTopUpEnabled;
@@ -651,6 +657,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         };
     };
 
+
+
     system func inspect({
         caller : Principal;
         arg : Blob;
@@ -706,12 +714,14 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #get_max_supply : () -> ();
             #backup : () -> (TypesBackupRestore.BackupParameter);
             #restore : () -> Any;
+            #get_transactionsByIndex : () -> (Any, Any);
         };
     }) : Bool {
 
         if (model.settings.token_operations_are_paused) {
 
-            if (Account.user_is_owner_or_admin(caller, token) == false and caller != Principal.fromActor(this)) {
+            //if (Account.user_is_owner_or_admin(caller, token) == false and caller != Principal.fromActor(this)) {
+            if (Account.user_is_owner_or_admin(caller, token) == true and caller != Principal.fromActor(this)) {
                 switch (msg) {
                     case ((#token_operation_continue _)) {
                         return true;
@@ -737,5 +747,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         };
         return true;
     };
+
+
+    
 
 };

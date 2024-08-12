@@ -158,7 +158,7 @@ module {
             minting_allowed : Bool = token.minting_allowed;
             burned_tokens : TypesCommon.Balance = token.burned_tokens;
             minting_account : TypesAccount.Account = token.minting_account; 
-            supported_standards : [TypesToken.SupportedStandard] = SB.toArray(token.supported_standards);      
+            supported_standards : [TypesCommon.SupportedStandard] = SB.toArray(token.supported_standards);      
             transaction_window : Nat = token.transaction_window;        
             min_burn_amount : TypesCommon.Balance = token.min_burn_amount;      
             permitted_drift : Nat = token.permitted_drift;

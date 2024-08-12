@@ -7,6 +7,7 @@ import AccountTest "Account/Account.Test";
 import Text "mo:base/Text";
 import ActorSpec "./utils/ActorSpec";
 import ExtendedTokenActorTest "ExtendedToken/ExtendedToken.ActorTest";
+import CommonTypes "../../src/ICRC1/Types/Types.Common";
 
 actor {
 

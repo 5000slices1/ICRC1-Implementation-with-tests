@@ -26,7 +26,7 @@ module {
     //Token types
     private type InitArgs = TokenTypes.InitArgs;
     private type MetaDatum = TokenTypes.MetaDatum;
-    private type SupportedStandard = TokenTypes.SupportedStandard;
+    private type SupportedStandard = CommonTypes.SupportedStandard;
     private type TokenData = TokenTypes.TokenData;
 
     //Account types
