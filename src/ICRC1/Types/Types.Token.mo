@@ -346,7 +346,14 @@ module {
         // Retrieves a list of transactions based on the given request.
         get_transactions : shared query (TransactionTypes.GetTransactionsRequest) -> async TransactionTypes.GetTransactionsResponse;
 
-        get_transactionsByIndex: shared (startIndex:Nat, length:Nat) -> async [TransactionTypes.Transaction];
+        // Retrieves a list of transactions starting from a specific index and up to a specified length.
+        get_transactions_by_index: shared (startIndex: Nat, length: Nat) -> async [TransactionTypes.Transaction];
+        
+        // Retrieves a list of transactions associated with a specific principal, starting from a specific index and up to a specified length.
+        get_transactions_by_principal: shared (principal: Principal, startIndex: Nat, length: Nat) -> async [TransactionTypes.Transaction];
+        
+        // Retrieves the total count of transactions associated with a specific principal.
+        get_transactions_by_principal_count: shared (principal: Principal) -> async Nat;
 
         // Retrieves a specific transaction by its ID.
         get_transaction : shared (tx_id : TransactionTypes.TxIndex) -> async ?TransactionTypes.Transaction;

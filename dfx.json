@@ -5,6 +5,10 @@
             "type": "motoko",
             "main": "src/ICRC1/Canisters/Token.mo"
         },
+        "archive": {
+            "type": "motoko",
+            "main": "src/ICRC1/Canisters/Archive.mo"
+        },
         "test": {
             "type": "motoko",
             "main": "tests/internal_tests/ActorTest.mo",

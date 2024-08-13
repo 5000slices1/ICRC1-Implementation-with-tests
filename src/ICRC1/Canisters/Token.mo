@@ -17,6 +17,7 @@ import Nat8 "mo:base/Nat8";
 import Float "mo:base/Float";
 import Trie "mo:base/Trie";
 import Blob "mo:base/Blob";
+import Iter "mo:base/Iter";
 import T "../Types/Types.All";
 import Constants "../Types/Types.Constants";
 import Account "../Modules/Token/Account/Account";
@@ -27,6 +28,7 @@ import MemoryController "../Modules/Token/MemoryController/MemoryController";
 import Utils "../Modules/Token/Utils/Utils";
 import TypesBackupRestore "../Types/Types.BackupRestore";
 import CommonTypes "../Types/Types.Common";
+
 
 
 /// The actor class for the main token
@@ -417,6 +419,13 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
+        
+        // TODO: remove this debug code
+        for(i in Iter.range(0,4000))
+        {
+            ignore await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
+        };
+
         await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
@@ -498,8 +507,16 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         ExtendedToken.get_transactions(token, req);
     };
 
-    public shared func get_transactionsByIndex(startIndex:Nat, length:Nat) : async [T.TransactionTypes.Transaction] {
+    public shared func get_transactions_by_index(startIndex:Nat, length:Nat) : async [T.TransactionTypes.Transaction] {
         await* ExtendedToken.get_transactions_by_index_directly(token, startIndex, length);
+    };
+
+    public shared func get_transactions_by_principal_count(principal:Principal) : async Nat {
+        await* ExtendedToken.get_transactions_by_principal_count(token, principal);        
+    };
+
+    public shared func get_transactions_by_principal(principal:Principal, startIndex:Nat, length:Nat) : async [T.TransactionTypes.Transaction] {
+        await* ExtendedToken.get_transactions_by_principal(token, principal, startIndex, length);        
     };
 
     // Additional functions not included in the ICRC1 standard
@@ -714,7 +731,9 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #get_max_supply : () -> ();
             #backup : () -> (TypesBackupRestore.BackupParameter);
             #restore : () -> Any;
-            #get_transactionsByIndex : () -> (Any, Any);
+            #get_transactions_by_index : () -> (Any, Any);
+            #get_transactions_by_principal_count: () -> Any;
+            #get_transactions_by_principal: () -> (Any, Any,Any);            
         };
     }) : Bool {
 

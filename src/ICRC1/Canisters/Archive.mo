@@ -147,6 +147,77 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
         };
     };
 
+
+    public shared query func get_transactions_by_principal(principal:Principal, startIndex:Nat, length:Nat): async [Transaction]{
+        
+        if (length == 0){
+            return [];
+        };
+
+        let key = get_user_transaction_key(principal);
+        let buffer = Buffer.Buffer<Transaction>(100);
+
+        let lastIndex:?Nat = hashList.get_last_index(key);
+        switch(lastIndex){
+            case (?index){
+                 var lastAvailableIndex = index;
+                 if (startIndex > lastAvailableIndex){
+                    return [];
+                 };
+                 
+                 let lastIndex:Nat = Nat.min(startIndex + length -1, lastAvailableIndex);
+                 for(index in Iter.range(startIndex, lastIndex)){
+                    let hashListIndexAsBlobOrNull : ?Blob = hashList.get_at_index(key, index);
+                    switch(hashListIndexAsBlobOrNull){
+                        case (?hashListIndexAsBlob){
+                            let hashListIndex : Nat = HashTable.Blobify.Nat.from_blob(hashListIndexAsBlob);
+                            let resultBlobOrNull : ?Blob = hashList.get_at_index(transactionsKey, hashListIndex);
+                            switch (resultBlobOrNull) {
+                                case (?resultBlob) {
+                                    let result : ?Transaction = from_candid (resultBlob);
+                                    switch(result){
+                                        case (?transaction){                                            
+                                            buffer.add(transaction);                                            
+                                        };
+                                        case (_){
+                                            //do nothing
+                                        };
+                                    };
+                                };
+                                case (_) {
+                                    //do nothing
+                                };
+                            };
+                        };
+                        case (_){
+                            //do nothing
+                        };
+                    };
+                 };                 
+            };
+            case (_){
+                return [];
+            };
+        };
+        
+        return Array.reverse(Buffer.toArray(buffer));
+    };
+
+    public shared query func get_transactions_by_principal_count(principal:Principal): async Nat{
+        let key = get_user_transaction_key(principal);
+        let lastIndex:?Nat = hashList.get_last_index(key);
+        switch(lastIndex){
+            case (?index){
+                return index + 1;
+            };
+            case (_){
+                return 0;
+            };
+        };
+        
+        return 0;
+    };
+
     public shared query func get_transaction(tx_index : TxIndex) : async ?Transaction {
 
         get_transaction_internal(tx_index);
