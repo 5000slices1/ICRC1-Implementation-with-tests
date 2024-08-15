@@ -421,10 +421,10 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         };
         
         // TODO: remove this debug code
-        for(i in Iter.range(0,4000))
-        {
-            ignore await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
-        };
+        // for(i in Iter.range(0,4000))
+        // {
+        //     ignore await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
+        // };
 
         await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
     };

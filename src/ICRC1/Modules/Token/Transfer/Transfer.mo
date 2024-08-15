@@ -238,13 +238,12 @@ module {
                     return #err(#GenericError({ error_code = 0; message = "Minting not allowed" }));
                 };
 
-                var newAmount:Nat = 0;
-                if (token.burned_tokens < token.minted_tokens){
-                    newAmount := token.minted_tokens - token.burned_tokens;
+                let totalSupply = token.minted_tokens - token.burned_tokens;
+                if (totalSupply + tx_req.amount > token.max_supply) {
+                    return #err(#GenericError({ error_code = 0; message = "Total supply would be exceeded. Minting rejected." }));
                 };
-                
-                if (newAmount > token.max_supply) {
-
+               
+                if (tx_req.amount > token.max_supply) {
                     return #err(#GenericError({ error_code = 0; message = "Total supply would be exceeded. Minting rejected." }));
                 };
             };

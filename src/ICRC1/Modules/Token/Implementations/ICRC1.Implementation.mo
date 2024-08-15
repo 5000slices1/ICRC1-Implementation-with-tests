@@ -60,6 +60,15 @@ module {
 
     /// Returns the total supply of circulating tokens
     public func icrc1_total_supply(token : TokenData) : Balance {
+        
+
+        let total_supply:Balance = token.minted_tokens - token.burned_tokens;
+        return total_supply;
+        
+
+        /*
+        // We can not iterate all the time to get the total supply
+        
         var iter = Trie.iter(token.accounts.trie);
         var totalBalances : Nat = 0;
         
@@ -68,6 +77,7 @@ module {
         };
 
         return totalBalances;
+        */
     };
 
     /// Returns the account with the permission to mint tokens
