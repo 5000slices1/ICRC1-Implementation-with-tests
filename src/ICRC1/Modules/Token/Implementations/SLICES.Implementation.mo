@@ -121,7 +121,7 @@ module {
         let itemForMainToken : T.CanisterTypes.CanisterStatsResponse = {
             name = "Main token";
             principal = Principal.toText(mainTokenPrincipal);
-            balance = mainTokenBalance;
+            cycles_balance = mainTokenBalance;
         };
         returnList := List.push(itemForMainToken, returnList);
 
@@ -138,7 +138,7 @@ module {
                     case (true) Principal.toText(item);
                     case (false) "<Hidden>";
                 };
-                balance = archiveCyclesBalance;
+                cycles_balance = archiveCyclesBalance;
             };
             returnList := List.push(newItem, returnList);
             counter := counter + 1;

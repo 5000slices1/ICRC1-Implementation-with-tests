@@ -7,7 +7,7 @@ module {
     public type CanisterStatsResponse = {
         name : Text;
         principal : Text;
-        balance : CommonTypes.Balance;
+        cycles_balance : CommonTypes.Balance;
     };
 
     ///Stored as stable var in token.mo
