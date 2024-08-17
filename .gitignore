@@ -24,3 +24,4 @@ NUL
 canister_ids.json
 Cargo.lock
 tests/Dfnity-ICRC1-Reference/target/**
+canister_ids.json

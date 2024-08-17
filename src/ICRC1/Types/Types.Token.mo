@@ -3,6 +3,7 @@ import AccountTypes "Types.Account";
 import TransactionTypes "Types.Transaction";
 import StableBuffer "mo:StableBuffer/StableBuffer";
 import Result "mo:base/Result";
+import List "mo:base/List";
 import ArchiveTypes "Types.Archive";
 import CanisterTypes "Types.Canister";
 import BackupRestoreTypes "Types.BackupRestore";
@@ -75,6 +76,7 @@ module {
 
     /// [InitArgs](#type.InitArgs) with optional fields for initializing a token canister
     public type TokenInitArgs = {
+        
         // The name of the token.
         name : Text;
 
@@ -109,6 +111,7 @@ module {
 
     /// The state of the token canister
     public type TokenData = {
+        
         /// The name of the token
         var name : Text;
 
@@ -119,7 +122,7 @@ module {
         var decimals : Nat8;
 
         /// The fee charged for each transaction
-        var defaultFee : Balance;
+        var fee : Balance;
 
         /// The logo for the token
         var logo : Text;
@@ -280,7 +283,6 @@ module {
         // Downscales the token amount by a specified number of decimal places
         tokens_amount_downscale : shared (numberOfDecimalPlaces : Nat8) -> async Result.Result<Text, Text>;
         
-
     };
 
     public type ExtendedTokenInterface = actor {

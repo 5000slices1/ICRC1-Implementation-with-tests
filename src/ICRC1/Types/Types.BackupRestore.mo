@@ -15,7 +15,7 @@ module {
     decimals : Nat8;
     
     // The default transaction fee for the token.
-    defaultFee : CommonTypes.Balance;
+    fee : CommonTypes.Balance;
     
     // The logo of the token.
     logo : Text;

@@ -43,17 +43,17 @@ module {
 
     /// Retrieve the fee for each transfer
     public func icrc1_fee(token : TokenData) : Balance {
-        token.defaultFee;
+        token.fee;
     };
 
     /// Retrieve all the metadata of the token
     public func icrc1_metadata(token : TokenData) : [MetaDatum] {
         [
-            ("icrc1:fee", #Nat(token.defaultFee)),
+            ("icrc1:fee", #Nat(token.fee)),
             ("icrc1:name", #Text(token.name)),
             ("icrc1:symbol", #Text(token.symbol)),
             ("icrc1:decimals", #Nat(Nat8.toNat(token.decimals))),
-            ("icrc1:minting_allowed", #Text(debug_show (token.minting_allowed))),
+            //("icrc1:minting_allowed", #Text(debug_show (token.minting_allowed))),
             ("icrc1:logo", #Text(token.logo)),
         ];
     };
@@ -68,7 +68,7 @@ module {
 
         /*
         // We can not iterate all the time to get the total supply
-        
+
         var iter = Trie.iter(token.accounts.trie);
         var totalBalances : Nat = 0;
         

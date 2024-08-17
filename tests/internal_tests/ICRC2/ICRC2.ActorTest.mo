@@ -130,7 +130,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -172,7 +172,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -227,7 +227,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -282,7 +282,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = ?0;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -337,7 +337,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = ?50;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -401,7 +401,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = ?(now + 100);
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -464,7 +464,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -483,7 +483,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 20 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -540,7 +540,7 @@ module {
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -559,7 +559,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 20 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -615,7 +615,7 @@ module {
                                     amount = 20 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -634,7 +634,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 20 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -701,7 +701,7 @@ module {
                                     amount = 105 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -726,7 +726,7 @@ module {
                                     from = user1;
                                     to = user2;
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -790,7 +790,7 @@ module {
                                     amount = 105 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -814,7 +814,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -877,7 +877,7 @@ module {
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -901,7 +901,7 @@ module {
                                     amount = 0;
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -922,7 +922,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -977,7 +977,7 @@ module {
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -1002,7 +1002,7 @@ module {
                                     amount = 0;
                                     expected_allowance = ?(100 * (10 ** Nat8.toNat(token.decimals)));
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -1024,7 +1024,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -1080,7 +1080,7 @@ module {
                                     amount = 100 * (10 ** Nat8.toNat(token.decimals));
                                     expected_allowance = null;
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -1101,7 +1101,7 @@ module {
                                     from = user1;
                                     to = user3;
                                     amount = 10 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -1126,7 +1126,7 @@ module {
                                     amount = 0;
                                     expected_allowance = ?(100 * (10 ** Nat8.toNat(token.decimals)));
                                     expires_at = null;
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };

@@ -153,7 +153,7 @@ module {
                                     from_subaccount = user1WithSubaccount.subaccount;
                                     to = user2;
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -202,7 +202,7 @@ module {
                                     from_subaccount = null;
                                     to = user2;
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -255,7 +255,7 @@ module {
                                     from_subaccount = user1WithSubaccount.subaccount;
                                     to = user2;
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };
@@ -303,7 +303,7 @@ module {
                                     from_subaccount = null;
                                     to = user2;
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };

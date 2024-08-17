@@ -84,7 +84,7 @@ module {
         SB.add(metadata, ("icrc1:name", #Text(args.name)));
         SB.add(metadata, ("icrc1:symbol", #Text(args.symbol)));
         SB.add(metadata, ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))));
-        SB.add(metadata, ("icrc1:minting_allowed", #Text(debug_show (args.minting_allowed))));
+        // SB.add(metadata, ("icrc1:minting_allowed", #Text(debug_show (args.minting_allowed))));
         SB.add(metadata, ("icrc1:logo", #Text(args.logo)));
 
         metadata;
@@ -150,11 +150,12 @@ module {
             _minted_tokens += balance;
         };
 
-        let result : T.TokenTypes.TokenData = {
+        let result : T.TokenTypes.TokenData = {   
+            
             var name = name;
             var symbol = symbol;
             var decimals = decimals;
-            var defaultFee = fee;
+            var fee = fee;
             var logo = logo;
             var max_supply = max_supply;
             var minted_tokens = _minted_tokens;

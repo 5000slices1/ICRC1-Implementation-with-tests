@@ -3,12 +3,14 @@ import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
+import Debug "mo:base/Debug";
 import Itertools "mo:itertools/Iter";
 import Account "../Account/Account";
 import TransactionTypes = "../../../Types/Types.Transaction";
 import TokenTypes "../../../Types/Types.Token";
 import CommonTypes "../../../Types/Types.Common";
 import Utils "../Utils/Utils";
+
 
 /// Token transfer related functions are defined here
 module {
@@ -135,7 +137,7 @@ module {
                 //changed becasue on https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md
                 //it says there:  If the fee argument does not agree with the ledger fee,
                 //                the ledger MUST return variant { BadFee = record { expected_fee = ... } } error.
-                if (tx_fee != token.defaultFee) {
+                if (tx_fee != token.fee) {
                     return false;
                 };
 
@@ -205,7 +207,7 @@ module {
             if (tx_req.amount <= tx_req.fee) {
                 return #err(
                     #GenericError({
-                        error_code = 0;
+                        error_code = 0;                        
                         message = "Amount must be greater than fee";
                     })
                 );
@@ -217,7 +219,7 @@ module {
                 if (not validate_fee(token, originalfeeFromRequest)) {
                     return #err(
                         #BadFee {
-                            expected_fee = token.defaultFee;
+                            expected_fee = token.fee;
                         }
                     );
                 };
@@ -234,18 +236,21 @@ module {
             };
 
             case (#mint) {
+           
                 if (token.minting_allowed == false) {
                     return #err(#GenericError({ error_code = 0; message = "Minting not allowed" }));
                 };
 
-                let totalSupply = token.minted_tokens - token.burned_tokens;
+                if (tx_req.amount < token.fee) {
+                    return #err(#GenericError({ error_code = 0; message = "Amount must be greater than fee" }));
+                };
+
+                let totalSupply:Nat = token.minted_tokens - token.burned_tokens;
                 if (totalSupply + tx_req.amount > token.max_supply) {
                     return #err(#GenericError({ error_code = 0; message = "Total supply would be exceeded. Minting rejected." }));
                 };
                
-                if (tx_req.amount > token.max_supply) {
-                    return #err(#GenericError({ error_code = 0; message = "Total supply would be exceeded. Minting rejected." }));
-                };
+               
             };
 
             case (#burn) {

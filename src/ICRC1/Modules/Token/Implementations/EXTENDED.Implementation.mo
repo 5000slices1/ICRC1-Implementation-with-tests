@@ -440,7 +440,7 @@ module {
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (fee >= 10_000 and fee <= 1_000_000_000) {
-                token.defaultFee := fee;
+                token.fee := fee;
             } else {
                 return #Err(
                     #GenericError {
@@ -457,7 +457,7 @@ module {
                 }
             );
         };
-        #Ok(token.defaultFee);
+        #Ok(token.fee);
     };
 
     /// Set the number of decimals specified for the token
