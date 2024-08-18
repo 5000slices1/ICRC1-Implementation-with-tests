@@ -23,8 +23,8 @@ module {
 
     ///Number of transactions to keep in token-cache until they are transfered into archive-canister
     //TODO: revert to 2000
-    //public let MAX_TRANSACTIONS_IN_LEDGER : Nat = 2000;
-    public let MAX_TRANSACTIONS_IN_LEDGER : Nat = 7;
+    public let MAX_TRANSACTIONS_IN_LEDGER : Nat = 2000;
+    //public let MAX_TRANSACTIONS_IN_LEDGER : Nat = 7;
     
     ///The maximum number of transactions returned by request of 'get_transactions'
     public let MAX_TRANSACTIONS_PER_REQUEST : Nat = 5000;

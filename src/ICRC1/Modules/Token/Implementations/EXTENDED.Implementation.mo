@@ -221,121 +221,67 @@ module {
     };
 
     public func get_transactions_by_principal(token : TokenData, principal : Principal, startIndex : Nat, length : Nat) : async* [T.TransactionTypes.Transaction] {
-        //await* ExtendedToken.get_transactions_by_principal_directly(token, principal, startIndex, length);
-        let countResult = await* get_transactions_by_principal_count_internal(token, principal);
 
-        let totalFound = countResult.0 + countResult.1;
-        if (totalFound <= 0) {
+        if (length <= 0) {
             return [];
         };
 
-        return [];
+        let countResult = await* get_transactions_by_principal_count_internal(token, principal);
+
+        let countCached : Nat = countResult.0;
+        let countInArchiveFound : Nat = countResult.1;
+
+        let totalFound = countCached + countInArchiveFound;
+        if (totalFound <= 0 or startIndex >= totalFound) {
+            return [];
+        };
+
+        let lengthToUse : Nat = Nat.min(length, ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
+
+        let result = Buffer.Buffer<Transaction>(lengthToUse);
+
+        let { archive; transactions } = token;
+
+        if (startIndex < countInArchiveFound) {
+            let txFoundInArchive = await archive.canister.get_transactions_by_principal(principal, startIndex, lengthToUse);
+            if (Array.size(txFoundInArchive) > 0) {
+                result.append(Buffer.fromArray<Transaction>(txFoundInArchive));
+            };
+        };
+
+        var missingTxCount : Nat = Nat.max((lengthToUse - result.size()), 0);
+        if (missingTxCount > 0) {
+
+            let localTransactionsCount = SB.size(transactions);
+
+            for (index in Iter.range(0, localTransactionsCount)) {
+
+                let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+                switch (cachedTxOrNull) {
+                    case (?cachedTx) {
+                        if (transaction_contains_principal(cachedTx, principal) == true) {
+                            // we want to have the reverse order
+                            result.insert(0, cachedTx);
+                        };
+
+                    };
+                    case (_) {
+                        // do nothing
+                    };
+
+                };
+            };
+        };
+
+        return Buffer.toArray(result);
     };
 
     public func get_transactions_by_principal_count(token : TokenData, principal : Principal) : async* Nat {
 
-        let { archive; transactions } = token;
         let foundTransactions = await* get_transactions_by_principal_count_internal(token, principal);
 
         let totalFound = foundTransactions.0 + foundTransactions.1;
         return totalFound;
-    };
-
-    private func get_transactions_by_principal_count_internal(token : TokenData, principal : Principal) : async* (Nat, Nat) {
-        var countFoundInCachedTx : Nat = 0;
-
-        let { archive; transactions } = token;
-        let localTransactionsCount = SB.size(transactions);
-
-        let result = Buffer.Buffer<Transaction>(localTransactionsCount);
-
-        for (index in Iter.range(0, localTransactionsCount)) {
-
-            let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
-
-            switch (cachedTxOrNull) {
-                case (?cachedTx) {
-
-                    var found = false;
-
-                    switch (cachedTx.transfer) {
-                        case (?transfer) {
-
-                            if (transfer.to.owner == principal or transfer.from.owner == principal) {                                
-                                found := true;
-                            };
-                        };
-                        case (_) {
-                            // do nothing
-                        };
-                    };
-                    if (found == false) {
-                        switch (cachedTx.mint) {
-                            case (?mint) {
-                                if (mint.to.owner == principal) {
-                                    found := true;
-                                };
-                            };
-                            case (_) {
-                                // do nothing
-                            };
-                        };
-                    };
-
-                    if (found == false) {
-                        switch (cachedTx.burn) {
-                            case (?burn) {
-                                if (burn.from.owner == principal) {
-                                    found := true;
-                                };
-                            };
-                            case (_) {
-                                // do nothing
-                            };
-                        };
-                    };
-
-                    if (found == true) {
-                        countFoundInCachedTx := countFoundInCachedTx + 1;
-                    };
-                };
-                case (_) {
-                    // do nothing
-                };
-            };
-        };
-
-        var countFoundInArchive : Nat = 0;
-        if (archive.stored_txs > 0) {
-            countFoundInArchive := await archive.canister.get_transactions_by_principal_count(principal);
-        };
-
-        return (countFoundInCachedTx, countFoundInArchive);
-    };
-
-    private func get_cached_transactions_array(token : TokenData) : [Transaction] {
-
-        let { archive; transactions } = token;
-        let localTransactionsCount = SB.size(transactions);
-
-        let result = Buffer.Buffer<Transaction>(localTransactionsCount);
-
-        for (index in Iter.range(0, localTransactionsCount)) {
-
-            let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
-            switch (cachedTxOrNull) {
-                case (?cachedTx) {
-                    // we want to have the reverse order
-                    result.insert(0, cachedTx);
-                };
-                case (_) {
-                    // do nothing
-                };
-
-            };
-        };
-
-        return result.toArray();
     };
 
     /// Retrieves the transactions specified by the given range
@@ -546,5 +492,112 @@ module {
     };
 
     // --------------------------------------------------------------------------------
+
+
+    // #region HelperMethods
+
+    private func transaction_contains_principal(tx : Transaction, principal : Principal) : Bool {
+
+        var found : Bool = false;
+        switch (tx.transfer) {
+            case (?transfer) {
+
+                if (transfer.to.owner == principal or transfer.from.owner == principal) {
+                    found := true;
+                };
+            };
+            case (_) {
+                // do nothing
+            };
+
+        };
+
+        if (found == false) {
+            switch (tx.mint) {
+                case (?mint) {
+                    if (mint.to.owner == principal) {
+                        found := true;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+        };
+
+        if (found == false) {
+            switch (tx.burn) {
+                case (?burn) {
+                    if (burn.from.owner == principal) {
+                        found := true;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+        };
+
+        return found;
+    };
+
+    private func get_transactions_by_principal_count_internal(token : TokenData, principal : Principal) : async* (Nat, Nat) {
+        var countFoundInCachedTx : Nat = 0;
+
+        let { archive; transactions } = token;
+        let localTransactionsCount = SB.size(transactions);
+
+        for (index in Iter.range(0, localTransactionsCount)) {
+
+            let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+
+            switch (cachedTxOrNull) {
+                case (?cachedTx) {
+
+                    if (transaction_contains_principal(cachedTx, principal) == true) {
+                        countFoundInCachedTx := countFoundInCachedTx + 1;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+        };
+
+        var countFoundInArchive : Nat = 0;
+        if (archive.stored_txs > 0) {
+            countFoundInArchive := await archive.canister.get_transactions_by_principal_count(principal);
+        };
+
+        return (countFoundInCachedTx, countFoundInArchive);
+    };
+
+    // private func get_cached_transactions_array(token : TokenData) : [Transaction] {
+
+    //     let { transactions } = token;
+    //     let localTransactionsCount = SB.size(transactions);
+
+    //     let result = Buffer.Buffer<Transaction>(localTransactionsCount);
+
+    //     for (index in Iter.range(0, localTransactionsCount)) {
+
+    //         let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+    //         switch (cachedTxOrNull) {
+    //             case (?cachedTx) {
+    //                 // we want to have the reverse order
+    //                 result.insert(0, cachedTx);
+    //             };
+    //             case (_) {
+    //                 // do nothing
+    //             };
+
+    //         };
+    //     };
+
+    //     return Buffer.toArray(result);
+    // };
+
+
+    // #endregion
 
 };
