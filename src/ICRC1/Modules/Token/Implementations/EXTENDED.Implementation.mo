@@ -17,6 +17,7 @@ import BackupService "../BackupRestore/BackupService";
 import Account "../Account/Account";
 import Option "mo:base/Option";
 import Debug "mo:base/Debug";
+import Int "mo:base/Int";
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)
@@ -152,42 +153,53 @@ module {
         var firstIndexInCacheOrNull : ?Nat = null;
         if (localTransactionsCount > 0) {
 
-            label internLoop for (index in Iter.range(0, localTransactionsCount)) {
+            let firstCachedTxOrNull : ?Transaction = SB.getOpt(transactions, 0);
+            var firstTx:Nat = 0;
+            var found:Bool = false;
+            switch (firstCachedTxOrNull) {
+                case (?firstCachedTx) {
+                    firstIndexInCacheOrNull := Option.make(firstCachedTx.index);
+                    found := true;
+                    firstTx := firstCachedTx.index;
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+          
+            let startTx:Nat = Nat.max(start - firstTx, 0);
+         
+            if (found == true and start >= firstTx) {
+                           
+                label internLoop for (index in Iter.range(startTx, localTransactionsCount)) {
 
-                let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
-                switch (cachedTxOrNull) {
-                    case (?cachedTx) {
-                        let index : Nat = cachedTx.index;
-                        if (index >= start and index < start + lengthToUse) {
-                            if (firstIndexInCacheOrNull == null) {
-                                firstIndexInCacheOrNull := Option.make(index);
+                    let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+                    switch (cachedTxOrNull) {
+                        case (?cachedTx) {
+                            let txIndex : Nat = cachedTx.index;
+                               
+                            if (txIndex >= start and txIndex < start + lengthToUse) {                            
+                                txBuffer.insert(0, cachedTx);
+                            } else {
+                                break internLoop;
                             };
-                            txBuffer.insert(0, cachedTx);
-                        } else {
+                        };
+                        case (_) {
                             break internLoop;
                         };
-                    };
-                    case (_) {
-                        break internLoop;
-                    };
 
+                    };
                 };
             };
         };
 
-        let bufferSize = txBuffer.size();
-        Debug.print("Buffer size: " #debug_show (bufferSize));
-        Debug.print("Length to use: " #debug_show (lengthToUse));
-
+        let bufferSize = txBuffer.size();      
         let missingCount = (lengthToUse - bufferSize) : Nat;
-        Debug.print("Missing count: " #debug_show (missingCount));
-
+        
         if (missingCount > 0 and archive.stored_txs > 0) {
 
             var archiveMustBeCalled : Bool = false;
-            Debug.print("First index in cache or null: " #debug_show (firstIndexInCacheOrNull));
-            Debug.print("Start: " #debug_show (start));
-
+          
             switch (firstIndexInCacheOrNull) {
                 case (?firstIndexInCache) {
                     if (start < firstIndexInCache) {
@@ -199,8 +211,7 @@ module {
                     archiveMustBeCalled := true;
                 };
             };
-            Debug.print("Archive must be called: " #debug_show (archiveMustBeCalled));
-
+           
             if (archiveMustBeCalled == true) {
                 let getTransactionRequest : GetTransactionsRequest = {
                     start = start;
