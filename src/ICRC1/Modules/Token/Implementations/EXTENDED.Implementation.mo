@@ -151,6 +151,7 @@ module {
 
         let txBuffer = Buffer.Buffer<Transaction>(lengthToUse);
         var firstIndexInCacheOrNull : ?Nat = null;
+        
         if (localTransactionsCount > 0) {
 
             let firstCachedTxOrNull : ?Transaction = SB.getOpt(transactions, 0);
@@ -167,18 +168,26 @@ module {
                 };
             };
           
-            let startTx:Nat = Nat.max(start - firstTx, 0);
-         
-            if (found == true and start >= firstTx) {
-                           
+                     
+            let maxTxToFind = start + lengthToUse;
+            if (found == true and maxTxToFind >= firstTx) {
+              
+                var startTx=0;
+                if (start > firstTx) {
+                    startTx := start - firstTx;
+                };
+                
                 label internLoop for (index in Iter.range(startTx, localTransactionsCount)) {
 
                     let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
                     switch (cachedTxOrNull) {
                         case (?cachedTx) {
                             let txIndex : Nat = cachedTx.index;
-                               
-                            if (txIndex >= start and txIndex < start + lengthToUse) {                            
+                            if (txIndex > maxTxToFind) {
+                                break internLoop;
+                            };
+                            
+                            if (txIndex >= start and txIndex < maxTxToFind) {                            
                                 txBuffer.insert(0, cachedTx);
                             } else {
                                 break internLoop;
@@ -217,6 +226,7 @@ module {
                     start = start;
                     length = missingCount;
                 };
+           
                 let archivedTransactions = await archive.canister.get_transactions(getTransactionRequest);
                 if (Array.size(archivedTransactions.transactions) > 0) {
                     let txFromArchive = Buffer.fromArray<Transaction>(

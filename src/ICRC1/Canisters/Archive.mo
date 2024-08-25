@@ -264,7 +264,6 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async ArchiveTy
     };
 
 
-
     public shared query func get_transactions(req : GetTransactionsRequest) : async TransactionRange {
         
         if (at_least_one_transaction_was_added == false){
