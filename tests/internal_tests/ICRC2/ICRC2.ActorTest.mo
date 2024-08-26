@@ -12,7 +12,9 @@ import ICRC2 "../../../src/ICRC1/Modules/Token/Implementations/ICRC2.Implementat
 import MemoryController "../../../src/ICRC1/Modules/Token/MemoryController/MemoryController";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
+import Debug "mo:base/Debug";
 import Model "../../../src/ICRC1/Types/Types.Model";
+import SlicesToken "../../../src/ICRC1/Modules/Token/Implementations/SLICES.Implementation";
 
 // ***************************************************************************************************
 // Many of these tests copied from Natlabs (and adjusted to make this work for this code-base)
@@ -296,8 +298,13 @@ module {
 
                                 let { allowance } = ICRC2.icrc2_allowance({ account = user1; spender = user2 }, memoryController);
 
+                                // This here is SLICES specific, but best place to test it
+                                let spendersList:[T.TransactionTypes.AllowanceInfo] = SlicesToken.get_allowance_list(memoryController,user1);
+                                let expectedSpendersList:[T.TransactionTypes.AllowanceInfo] = [{allowance = 5_000_000_000; expires_at = null; spender = user2}];
+                             
                                 assertAllTrue([
                                     res == #Ok(approve_args.amount),
+                                    spendersList == expectedSpendersList,                                    
                                     allowance == balance_from_float(token, 50),
                                     ICRC1.icrc1_balance_of(token, user1) == balance_from_float(token, 0),
                                     token.burned_tokens == balance_from_float(token, 5),

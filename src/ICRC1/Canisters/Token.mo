@@ -121,6 +121,10 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // -------------------------------------------------------------------------------------------
     // SLICES token functions
 
+
+    public shared query func get_allowance_list(owner : T.AccountTypes.Account):async [T.TransactionTypes.AllowanceInfo] {
+        SlicesToken.get_allowance_list(memoryController,owner);
+    };
     //Fee is zero for Fee-whitelisted principals, else defaultFee is returned
     public shared query func real_fee(from : Principal, to : Principal) : async T.Balance {        
         SlicesToken.get_real_token_fee(from, to, token);
@@ -364,8 +368,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     public shared ({ caller }) func restore(restoreInfo : TypesBackupRestore.RestoreInfo) : async Result.Result<Text, Text> {
 
-        if (Account.user_is_owner_or_admin(caller, token) == false) {
-            return #err("Unauthorized: Only minting account or admin can call this function..");
+        if (caller != token.minting_account.owner){        
+            return #err("Unauthorized: Only minting account can call this function..");
         };
 
         ExtendedToken.restore(memoryController, token, restoreInfo);
@@ -422,13 +426,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
-        
-        // TODO: remove this debug code
-        // for(i in Iter.range(0,4000))
-        // {
-        //     ignore await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
-        // };
-
+               
         await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
@@ -736,7 +734,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #restore : () -> Any;
             #get_transactions_by_index : () -> (Any, Any);
             #get_transactions_by_principal_count: () -> Any;
-            #get_transactions_by_principal: () -> (Any, Any,Any);      
+            #get_transactions_by_principal: () -> (Any, Any,Any);   
+            #get_allowance_list:() -> Any;
             #get_token_maindata: () -> ();                
         };
     }) : Bool {
@@ -767,6 +766,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
                 };
                 return false;
             };
+            return false;
         };
         return true;
     };

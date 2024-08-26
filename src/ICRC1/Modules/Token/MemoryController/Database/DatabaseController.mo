@@ -2,6 +2,7 @@ import Buffer "mo:base/Buffer";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
+import Principal "mo:base/Principal";
 import T "../../../../Types/Types.All";
 import ModelType "../../../../Types/Types.Model";
 import HashList "mo:memory-hashlist";
@@ -46,6 +47,81 @@ module {
             ignore hashTable.put(allowanceKey, dbAllowance_as_blob);
 
             return #Ok(app_req.amount);
+        };
+
+        public func get_allowance_list(owner : AccountTypes.Account):[T.TransactionTypes.AllowanceInfo]{
+
+            let ownerEncodedAccount : EncodedAccount = Account.encode(owner);
+            let spenderListKey : Blob = get_allowance_spender_list_key(ownerEncodedAccount);
+            
+            let lastIndexOrNull:?Nat = hashList.get_last_index(spenderListKey);
+            var lastIndex : Nat = 0;
+
+            switch (lastIndexOrNull) {
+                case (?lastIndexValue) {
+                        lastIndex := lastIndexValue;
+                    };                                    
+                case (_) {
+                    return [];
+                };
+            };
+
+            let result = Buffer.Buffer<T.TransactionTypes.AllowanceInfo>(lastIndex);
+
+            let spenderBlobs:[?Blob] = hashList.get_at_range(spenderListKey, 0, lastIndex);
+
+            for (index in Iter.range(0, lastIndex)) {
+                
+                let spenderAsBlob : ?Blob = spenderBlobs[index];
+                if (spenderAsBlob != null) {
+                    
+                    switch (spenderAsBlob) {
+                        case (?spenderAsBlobValue) {
+
+                            let allowanceOrNull:?T.TransactionTypes.DbAllowance = get_allowance_internal(ownerEncodedAccount, spenderAsBlobValue);
+
+                            let spenderOrNull : ?AccountTypes.Account = Account.decode(spenderAsBlobValue);
+                            var foundSpender : AccountTypes.Account =
+                            {
+                                 owner = Principal.fromText("aaaaa-aa"); 
+                                 subaccount = null; 
+                            };
+                            var found = false;
+                            switch (spenderOrNull) {
+                                case (?spenderValue) {
+                                    foundSpender := spenderValue;
+                                    found:=true;
+                                };
+                                case (_) {
+                                    // do nothing
+                                };
+                            };
+                            if (found == true){
+
+                                switch (allowanceOrNull) {
+                                    case (?allowanceItem) {
+                                        
+                                        let resultItem : T.TransactionTypes.AllowanceInfo = {
+                                            allowance = allowanceItem.allowance;
+                                            expires_at = allowanceItem.expires_at;
+                                            spender = foundSpender;
+                                        };    
+                                        result.add(resultItem);                     
+                                    };
+                                    case (_) {
+                                        // do nothing
+                                    };
+                                };
+                            };                           
+                        };
+                        case (_) {
+                            // do nothing
+                        };
+                    };
+                };
+            };
+        
+            return Buffer.toArray(result);
         };
 
         public func get_allowance(owner : AccountTypes.Account, spender : AccountTypes.Account) : T.TransactionTypes.Allowance {
