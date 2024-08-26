@@ -247,6 +247,12 @@ module {
      */
     public type SlicesTokenInterface = actor {
 
+        
+        // This function retrieves a list of allowance information for a given account owner.
+        // It is a shared query method, meaning it can be called by any actor and does not modify state.
+        // The function takes an `Account` as input and returns an asynchronous list of `AllowanceInfo`.
+        get_allowance_list: shared query (owner : Account) -> async [TransactionTypes.AllowanceInfo];
+
         // Queries the real fee between two principals
         real_fee : shared query (from : Principal, to : Principal) -> async Balance;
 
