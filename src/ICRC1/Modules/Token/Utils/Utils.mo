@@ -26,7 +26,7 @@ module {
     //Token types
     private type InitArgs = TokenTypes.InitArgs;
     private type MetaDatum = TokenTypes.MetaDatum;
-    private type SupportedStandard = TokenTypes.SupportedStandard;
+    private type SupportedStandard = CommonTypes.SupportedStandard;
     private type TokenData = TokenTypes.TokenData;
 
     //Account types
@@ -74,7 +74,7 @@ module {
 
         let listSize : Nat = List.size<Principal>(token.feeWhitelistedPrincipals);
         if (listSize == 0) {
-            return token.defaultFee;
+            return token.fee;
         };
 
         func listFindFunc(x : Principal) : Bool {
@@ -90,7 +90,7 @@ module {
             return 0;
         };
 
-        return token.defaultFee;
+        return token.fee;
 
     };
 
@@ -110,7 +110,7 @@ module {
                 return result;
 
             };
-            case (_) { return token.defaultFee };
+            case (_) { return token.fee };
         };
 
     };

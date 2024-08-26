@@ -6,6 +6,7 @@ import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
+import List "mo:base/List";
 import Itertools "mo:itertools/Iter";
 import TypesConstants "../../Types/Types.Constants";
 import Account "../Token/Account/Account";
@@ -145,20 +146,50 @@ module {
     //--------------------------------------------------------------------------------
     // Converters for backup and restore
 
+
+    public func ConvertToTokenMainData (token:T.TokenTypes.TokenData) : TypesBackup.BackupCommonTokenData{                
+        let resultOrNull = ConvertToTokenMainDataFromNat8Array(ConvertToTokenMainDataNat8Array(token));        
+        switch (resultOrNull){
+            case (?result) return result;
+            case (null) {
+
+                let defaultType:TypesBackup.BackupCommonTokenData  = {
+                    name = "";
+                    symbol = "";
+                    decimals = 0;
+                    fee = 0;
+                    logo = "";
+                    max_supply = 0;
+                    minted_tokens = 0;
+                    minting_allowed = false;
+                    burned_tokens = 0;
+                    minting_account = { owner = Principal.fromText("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); subaccount = null; };
+                    supported_standards = [];
+                    transaction_window = 0;
+                    min_burn_amount = 0;
+                    permitted_drift = 0;
+                    feeWhitelistedPrincipals = List.nil<Principal>();
+                    tokenAdmins =List.nil<Principal>();
+                };
+                return defaultType;
+            };
+        };
+    };
+
     public func ConvertToTokenMainDataNat8Array(token:T.TokenTypes.TokenData):[Nat8]{        
         let resultAsType:TypesBackup.BackupCommonTokenData = {
    
             name : Text = token.name;   
             symbol : Text = token.symbol;       
             decimals : Nat8 = token.decimals;     
-            defaultFee : TypesCommon.Balance = token.defaultFee;
+            fee : TypesCommon.Balance = token.fee;
             logo : Text = token.logo;    
             max_supply : TypesCommon.Balance = token.max_supply;
             minted_tokens : TypesCommon.Balance = token.minted_tokens; 
             minting_allowed : Bool = token.minting_allowed;
             burned_tokens : TypesCommon.Balance = token.burned_tokens;
             minting_account : TypesAccount.Account = token.minting_account; 
-            supported_standards : [TypesToken.SupportedStandard] = SB.toArray(token.supported_standards);      
+            supported_standards : [TypesCommon.SupportedStandard] = SB.toArray(token.supported_standards);      
             transaction_window : Nat = token.transaction_window;        
             min_burn_amount : TypesCommon.Balance = token.min_burn_amount;      
             permitted_drift : Nat = token.permitted_drift;

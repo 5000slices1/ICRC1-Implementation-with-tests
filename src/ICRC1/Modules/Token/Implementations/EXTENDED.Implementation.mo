@@ -3,6 +3,9 @@ import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
+import Iter "mo:base/Iter";
+import Buffer "mo:base/Buffer";
+import Bool "mo:base/Bool";
 import Utils "../Utils/Utils";
 import T "../../../Types/Types.All";
 import { ConstantTypes } = "../../../Types/Types.All";
@@ -12,6 +15,9 @@ import MemoryController "../../../Modules/Token/MemoryController/MemoryControlle
 import TypesBackupRestore "../../../Types/Types.BackupRestore";
 import BackupService "../BackupRestore/BackupService";
 import Account "../Account/Account";
+import Option "mo:base/Option";
+import Debug "mo:base/Debug";
+import Int "mo:base/Int";
 
 /// Additional Token implementations
 ///() ==Additional methods that are not defined in ICRC1 or ICRC2)
@@ -73,7 +79,7 @@ module {
         args : Mint,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
-        model:Model.Model
+        model : Model.Model,
     ) : async* TransferResult {
 
         if (token.minting_allowed == false) {
@@ -99,7 +105,7 @@ module {
         args : BurnArgs,
         caller : Principal,
         archive_canisterIds : T.ArchiveTypes.ArchiveCanisterIds,
-        model:Model.Model
+        model : Model.Model,
     ) : async* TransferResult {
 
         let transfer_args : TransferArgs = {
@@ -126,6 +132,177 @@ module {
             let local_tx_index = (tx_index - archive.stored_txs) : Nat;
             SB.getOpt(transactions, local_tx_index);
         };
+    };
+
+    public func get_transactions_by_index_directly(token : TokenData, start : Nat, length : Nat) : async* [Transaction] {
+
+        let { archive; transactions } = token;
+        if (length <= 0) {
+            return [];
+        };
+
+        var lengthToUse = Nat.min(length, ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
+        let totalNumberOfTransactions = total_transactions(token);
+        if (start >= totalNumberOfTransactions) {
+            return [];
+        };
+
+        let localTransactionsCount = SB.size(transactions);
+
+        let txBuffer = Buffer.Buffer<Transaction>(lengthToUse);
+        var firstIndexInCacheOrNull : ?Nat = null;
+        
+        if (localTransactionsCount > 0) {
+
+            let firstCachedTxOrNull : ?Transaction = SB.getOpt(transactions, 0);
+            var firstTx:Nat = 0;
+            var found:Bool = false;
+            switch (firstCachedTxOrNull) {
+                case (?firstCachedTx) {
+                    firstIndexInCacheOrNull := Option.make(firstCachedTx.index);
+                    found := true;
+                    firstTx := firstCachedTx.index;
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+          
+                     
+            let maxTxToFind = start + lengthToUse;
+            if (found == true and maxTxToFind >= firstTx) {
+              
+                var startTx=0;
+                if (start > firstTx) {
+                    startTx := start - firstTx;
+                };
+                
+                label internLoop for (index in Iter.range(startTx, localTransactionsCount)) {
+
+                    let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+                    switch (cachedTxOrNull) {
+                        case (?cachedTx) {
+                            let txIndex : Nat = cachedTx.index;
+                            if (txIndex > maxTxToFind) {
+                                break internLoop;
+                            };
+                            
+                            if (txIndex >= start and txIndex < maxTxToFind) {                            
+                                txBuffer.insert(0, cachedTx);
+                            } else {
+                                break internLoop;
+                            };
+                        };
+                        case (_) {
+                            break internLoop;
+                        };
+
+                    };
+                };
+            };
+        };
+
+        let bufferSize = txBuffer.size();      
+        let missingCount = (lengthToUse - bufferSize) : Nat;
+        
+        if (missingCount > 0 and archive.stored_txs > 0) {
+
+            var archiveMustBeCalled : Bool = false;
+          
+            switch (firstIndexInCacheOrNull) {
+                case (?firstIndexInCache) {
+                    if (start < firstIndexInCache) {
+                        archiveMustBeCalled := true;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                    archiveMustBeCalled := true;
+                };
+            };
+           
+            if (archiveMustBeCalled == true) {
+                let getTransactionRequest : GetTransactionsRequest = {
+                    start = start;
+                    length = missingCount;
+                };
+           
+                let archivedTransactions = await archive.canister.get_transactions(getTransactionRequest);
+                if (Array.size(archivedTransactions.transactions) > 0) {
+                    let txFromArchive = Buffer.fromArray<Transaction>(
+                        Array.reverse<Transaction>(archivedTransactions.transactions)
+                    );
+
+                    txBuffer.append(txFromArchive);
+                };
+            };
+        };
+
+        return txBuffer.toArray();
+    };
+
+    public func get_transactions_by_principal(token : TokenData, principal : Principal, startIndex : Nat, length : Nat) : async* [T.TransactionTypes.Transaction] {
+
+        if (length <= 0) {
+            return [];
+        };
+
+        let countResult = await* get_transactions_by_principal_count_internal(token, principal);
+
+        let countCached : Nat = countResult.0;
+        let countInArchiveFound : Nat = countResult.1;
+
+        let totalFound = countCached + countInArchiveFound;
+        if (totalFound <= 0 or startIndex >= totalFound) {
+            return [];
+        };
+
+        let lengthToUse : Nat = Nat.min(length, ConstantTypes.MAX_TRANSACTIONS_PER_REQUEST);
+
+        let result = Buffer.Buffer<Transaction>(lengthToUse);
+
+        let { archive; transactions } = token;
+
+        if (startIndex < countInArchiveFound) {
+            let txFoundInArchive = await archive.canister.get_transactions_by_principal(principal, startIndex, lengthToUse);
+            if (Array.size(txFoundInArchive) > 0) {
+                result.append(Buffer.fromArray<Transaction>(txFoundInArchive));
+            };
+        };
+
+        var missingTxCount : Nat = Nat.max((lengthToUse - result.size()), 0);
+        if (missingTxCount > 0) {
+
+            let localTransactionsCount = SB.size(transactions);
+
+            for (index in Iter.range(0, localTransactionsCount)) {
+
+                let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+                switch (cachedTxOrNull) {
+                    case (?cachedTx) {
+                        if (transaction_contains_principal(cachedTx, principal) == true) {
+                            // we want to have the reverse order
+                            result.insert(0, cachedTx);
+                        };
+
+                    };
+                    case (_) {
+                        // do nothing
+                    };
+
+                };
+            };
+        };
+
+        return Buffer.toArray(result);
+    };
+
+    public func get_transactions_by_principal_count(token : TokenData, principal : Principal) : async* Nat {
+
+        let foundTransactions = await* get_transactions_by_principal_count_internal(token, principal);
+
+        let totalFound = foundTransactions.0 + foundTransactions.1;
+        return totalFound;
     };
 
     /// Retrieves the transactions specified by the given range
@@ -188,29 +365,28 @@ module {
 
     public func backup(
         memoryController : MemoryController.MemoryController,
-        token:T.TokenTypes.TokenData,        
-        backupParameter:TypesBackupRestore.BackupParameter        
-        ):Result.Result<(isComplete:Bool, data:[Nat8]), Text>{
-            
-            BackupService.backup(memoryController,token,backupParameter);
+        token : T.TokenTypes.TokenData,
+        backupParameter : TypesBackupRestore.BackupParameter,
+    ) : Result.Result<(isComplete : Bool, data : [Nat8]), Text> {
+
+        BackupService.backup(memoryController, token, backupParameter);
     };
 
-
-    public func restore( 
+    public func restore(
         memoryController : MemoryController.MemoryController,
-        token:T.TokenTypes.TokenData,
-        restoreInfo:TypesBackupRestore.RestoreInfo):Result.Result<Text, Text>{
-            
-            BackupService.restore(memoryController, token, restoreInfo);
+        token : T.TokenTypes.TokenData,
+        restoreInfo : TypesBackupRestore.RestoreInfo,
+    ) : Result.Result<Text, Text> {
+
+        BackupService.restore(memoryController, token, restoreInfo);
     };
 
-   
     // --------------------------------------------------------------------------------
     // Set or Update values
 
     /// Set the logo for the token
     public func set_logo(token : TokenData, logo : Text, caller : Principal) : async* SetTextParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             token.logo := logo;
@@ -227,11 +403,11 @@ module {
 
     /// Set the fee for each transfer
     public func set_fee(token : TokenData, fee : Nat, caller : Principal) : async* SetBalanceParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (fee >= 10_000 and fee <= 1_000_000_000) {
-                token.defaultFee := fee;
+                token.fee := fee;
             } else {
                 return #Err(
                     #GenericError {
@@ -248,12 +424,12 @@ module {
                 }
             );
         };
-        #Ok(token.defaultFee);
+        #Ok(token.fee);
     };
 
     /// Set the number of decimals specified for the token
     public func set_decimals(token : TokenData, decimals : Nat8, caller : Principal) : async* SetNat8ParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (decimals >= 2 and decimals <= 12) {
@@ -279,7 +455,7 @@ module {
 
     /// Set the minimum burn amount
     public func set_min_burn_amount(token : TokenData, min_burn_amount : Nat, caller : Principal) : async* SetBalanceParameterResult {
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             if (min_burn_amount >= 10_000 and min_burn_amount <= 1_000_000_000_000) {
@@ -305,8 +481,7 @@ module {
 
     /// Set the name of the token
     public func set_name(token : TokenData, name : Text, caller : Principal) : async* SetTextParameterResult {
-        
-        
+
         let userIsAdminOrOwner = Account.user_is_owner_or_admin(caller, token);
         if (userIsAdminOrOwner == true) {
             token.name := name;
@@ -338,5 +513,112 @@ module {
     };
 
     // --------------------------------------------------------------------------------
+
+
+    // #region HelperMethods
+
+    private func transaction_contains_principal(tx : Transaction, principal : Principal) : Bool {
+
+        var found : Bool = false;
+        switch (tx.transfer) {
+            case (?transfer) {
+
+                if (transfer.to.owner == principal or transfer.from.owner == principal) {
+                    found := true;
+                };
+            };
+            case (_) {
+                // do nothing
+            };
+
+        };
+
+        if (found == false) {
+            switch (tx.mint) {
+                case (?mint) {
+                    if (mint.to.owner == principal) {
+                        found := true;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+        };
+
+        if (found == false) {
+            switch (tx.burn) {
+                case (?burn) {
+                    if (burn.from.owner == principal) {
+                        found := true;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+        };
+
+        return found;
+    };
+
+    private func get_transactions_by_principal_count_internal(token : TokenData, principal : Principal) : async* (Nat, Nat) {
+        var countFoundInCachedTx : Nat = 0;
+
+        let { archive; transactions } = token;
+        let localTransactionsCount = SB.size(transactions);
+
+        for (index in Iter.range(0, localTransactionsCount)) {
+
+            let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+
+            switch (cachedTxOrNull) {
+                case (?cachedTx) {
+
+                    if (transaction_contains_principal(cachedTx, principal) == true) {
+                        countFoundInCachedTx := countFoundInCachedTx + 1;
+                    };
+                };
+                case (_) {
+                    // do nothing
+                };
+            };
+        };
+
+        var countFoundInArchive : Nat = 0;
+        if (archive.stored_txs > 0) {
+            countFoundInArchive := await archive.canister.get_transactions_by_principal_count(principal);
+        };
+
+        return (countFoundInCachedTx, countFoundInArchive);
+    };
+
+    // private func get_cached_transactions_array(token : TokenData) : [Transaction] {
+
+    //     let { transactions } = token;
+    //     let localTransactionsCount = SB.size(transactions);
+
+    //     let result = Buffer.Buffer<Transaction>(localTransactionsCount);
+
+    //     for (index in Iter.range(0, localTransactionsCount)) {
+
+    //         let cachedTxOrNull : ?Transaction = SB.getOpt(transactions, index);
+    //         switch (cachedTxOrNull) {
+    //             case (?cachedTx) {
+    //                 // we want to have the reverse order
+    //                 result.insert(0, cachedTx);
+    //             };
+    //             case (_) {
+    //                 // do nothing
+    //             };
+
+    //         };
+    //     };
+
+    //     return Buffer.toArray(result);
+    // };
+
+
+    // #endregion
 
 };

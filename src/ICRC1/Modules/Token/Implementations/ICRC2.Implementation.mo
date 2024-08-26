@@ -216,8 +216,7 @@ module {
                 })
             );
         };
-
-        // TODO: Verify if approval memo should be validated for approvals.
+        
         if (not TransferHelper.validate_memo(app_req.memo)) {
             return #err(
                 #GenericError({
@@ -226,12 +225,11 @@ module {
                 })
             );
         };
-
-        // TODO: Verify if approval fee should be validated as a transfer fee.
+        
         if (not TransferHelper.validate_fee(token, app_req.fee)) {
             return #err(
                 #BadFee {
-                    expected_fee = token.defaultFee;
+                    expected_fee = token.fee;
                 }
             );
         };

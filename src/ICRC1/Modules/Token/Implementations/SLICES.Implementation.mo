@@ -14,6 +14,7 @@ import MemoryController "../MemoryController/MemoryController";
 import { cancelTimer } = "mo:base/Timer";
 import Debug "mo:base/Debug";
 import StableBuffer "mo:StableBuffer/StableBuffer";
+import Model "../../../Types/Types.Model";
 
 /// Slices Token implementations
 /// ( == functions needed for the future Slices-apps )
@@ -40,6 +41,11 @@ module {
 
     public func list_admin_users(token : TokenData) : [Principal] {
         Account.list_admin_users(token : TokenData);
+    };
+
+    public func get_allowance_list(memoryController: MemoryController.MemoryController, owner : T.AccountTypes.Account):[T.TransactionTypes.AllowanceInfo] {
+
+        memoryController.databaseController.get_allowance_list(owner);                 
     };
 
     // Will return 0 if 'principalFrom' od 'principalTo' is whitelisted, else default Fee will be returned
@@ -121,7 +127,7 @@ module {
         let itemForMainToken : T.CanisterTypes.CanisterStatsResponse = {
             name = "Main token";
             principal = Principal.toText(mainTokenPrincipal);
-            balance = mainTokenBalance;
+            cycles_balance = mainTokenBalance;
         };
         returnList := List.push(itemForMainToken, returnList);
 
@@ -138,7 +144,7 @@ module {
                     case (true) Principal.toText(item);
                     case (false) "<Hidden>";
                 };
-                balance = archiveCyclesBalance;
+                cycles_balance = archiveCyclesBalance;
             };
             returnList := List.push(newItem, returnList);
             counter := counter + 1;

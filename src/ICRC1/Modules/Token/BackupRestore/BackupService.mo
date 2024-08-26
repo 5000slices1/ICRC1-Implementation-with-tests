@@ -95,6 +95,7 @@ module {
 
     };
 
+  
     public func backup(
         memoryController : MemoryController.MemoryController,
         token : T.TokenTypes.TokenData,
@@ -131,6 +132,7 @@ module {
         return #err("error");
     };
 
+
     private func Nat8ArrayFromTokenMainData(token : T.TokenTypes.TokenData) : [Nat8] {
         Converters.ConvertToTokenMainDataNat8Array(token);
     };
@@ -147,7 +149,7 @@ module {
                 token.name := commonData.name;
                 token.symbol := commonData.symbol;
                 token.decimals := commonData.decimals;
-                token.defaultFee := commonData.defaultFee;
+                token.fee := commonData.fee;
                 token.logo := commonData.logo;
                 token.max_supply := commonData.max_supply;
                 token.minted_tokens := commonData.minted_tokens;

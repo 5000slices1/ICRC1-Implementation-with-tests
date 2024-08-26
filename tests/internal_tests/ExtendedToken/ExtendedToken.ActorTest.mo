@@ -191,7 +191,7 @@ module {
 
                 for (i in Iter.range(0, txs_size - 1)) {
                     let tx = tx_res.transactions[i];
-                    let mocked_tx = mock_tx(user1, archive.stored_txs + i, token.defaultFee);
+                    let mocked_tx = mock_tx(user1, archive.stored_txs + i, token.fee);
 
                     if (not is_tx_equal(tx, mocked_tx)) {
 
@@ -250,7 +250,7 @@ module {
                     token,
                     {
                         to = user1;
-                        amount = (i + 1) + token.defaultFee;
+                        amount = (i + 1) + token.fee;
                         memo = null;
                         created_at_time = null;
                     },
@@ -486,23 +486,23 @@ module {
                                             assertAllTrue([
                                                 is_opt_tx_equal(
                                                     (await* ExtendedToken.get_transaction(token, 0)),
-                                                    ?mock_tx(user1, 0, token.defaultFee),
+                                                    ?mock_tx(user1, 0, token.fee),
                                                 ),
                                                 is_opt_tx_equal(
                                                     (await* ExtendedToken.get_transaction(token, 1234)),
-                                                    ?mock_tx(user1, 1234, token.defaultFee),
+                                                    ?mock_tx(user1, 1234, token.fee),
                                                 ),
                                                 is_opt_tx_equal(
                                                     (await* ExtendedToken.get_transaction(token, 2000)),
-                                                    ?mock_tx(user1, 2000, token.defaultFee),
+                                                    ?mock_tx(user1, 2000, token.fee),
                                                 ),
                                                 is_opt_tx_equal(
                                                     (await* ExtendedToken.get_transaction(token, 4100)),
-                                                    ?mock_tx(user1, 4100, token.defaultFee),
+                                                    ?mock_tx(user1, 4100, token.fee),
                                                 ),
                                                 is_opt_tx_equal(
                                                     (await* ExtendedToken.get_transaction(token, 4122)),
-                                                    ?mock_tx(user1, 4122, token.defaultFee),
+                                                    ?mock_tx(user1, 4122, token.fee),
                                                 ),
                                             ]);
                                         },
@@ -524,7 +524,7 @@ module {
 
                                             assertAllTrue([
                                                 validate_get_transactions(token, req, res),
-                                                (await validate_archived_range([{ start = 0; length = 2000 }], archived_txs, token.defaultFee)),
+                                                (await validate_archived_range([{ start = 0; length = 2000 }], archived_txs, token.fee)),
                                             ]);
                                         },
                                     ),
@@ -545,7 +545,7 @@ module {
 
                                             assertAllTrue([
                                                 validate_get_transactions(token, req, res),
-                                                (await validate_archived_range([{ start = 3000; length = 1000 }], archived_txs, token.defaultFee)),
+                                                (await validate_archived_range([{ start = 3000; length = 1000 }], archived_txs, token.fee)),
                                             ]);
                                         },
                                     ),
@@ -566,7 +566,7 @@ module {
 
                                             assertAllTrue([
                                                 validate_get_transactions(token, req, res),
-                                                (await validate_archived_range([], archived_txs, token.defaultFee)),
+                                                (await validate_archived_range([], archived_txs, token.fee)),
                                             ]);
                                         },
                                     ),
@@ -587,7 +587,7 @@ module {
 
                                             assertAllTrue([
                                                 validate_get_transactions(token, req, res),
-                                                (await validate_archived_range([{ start = 0; length = 4000 }], archived_txs, token.defaultFee)),
+                                                (await validate_archived_range([{ start = 0; length = 4000 }], archived_txs, token.fee)),
 
                                             ]);
                                         },
@@ -609,7 +609,7 @@ module {
 
                                             assertAllTrue([
                                                 validate_get_transactions(token, req, res),
-                                                (await validate_archived_range([], archived_txs, token.defaultFee)),
+                                                (await validate_archived_range([], archived_txs, token.fee)),
 
                                             ]);
                                         },
@@ -661,7 +661,7 @@ module {
                                     token.name := "Noname";
                                     token.symbol := "newSymbol";
                                     token.decimals := 2;
-                                    token.defaultFee := 1234;
+                                    token.fee := 1234;
                                     token.logo := "MyLogo";
                                     token.max_supply := 10000;
                                     token.minted_tokens := 222;
@@ -701,7 +701,7 @@ module {
                                     token.name == token_clone.name,
                                     token.symbol == token_clone.symbol,
                                     token.decimals == token_clone.decimals,
-                                    token.defaultFee == token_clone.defaultFee,
+                                    token.fee == token_clone.fee,
                                     token.logo == token_clone.logo,
                                     token.max_supply == token_clone.max_supply,
                                     token.minted_tokens == token_clone.minted_tokens,
@@ -770,7 +770,7 @@ module {
                                         from_subaccount = user1.subaccount;
                                         to = account;
                                         amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                        fee = ?token.defaultFee;
+                                        fee = ?token.fee;
                                         memo = null;
                                         created_at_time = null;
                                     };
@@ -847,7 +847,7 @@ module {
                                             from_subaccount = user1.subaccount;
                                             to = account;
                                             amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                            fee = ?token.defaultFee;
+                                            fee = ?token.fee;
                                             memo = null;
                                             created_at_time = null;
                                         };
@@ -945,7 +945,7 @@ module {
                                         from_subaccount = user1.subaccount;
                                         to = account;
                                         amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                        fee = ?token.defaultFee;
+                                        fee = ?token.fee;
                                         memo = null;
                                         created_at_time = null;
                                     };
@@ -1008,7 +1008,7 @@ module {
                                             from_subaccount = user1.subaccount;
                                             to = accountItem;
                                             amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                            fee = ?token.defaultFee;
+                                            fee = ?token.fee;
                                             memo = null;
                                             created_at_time = null;
                                         };

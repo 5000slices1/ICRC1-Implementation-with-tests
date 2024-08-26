@@ -17,6 +17,7 @@ import Nat8 "mo:base/Nat8";
 import Float "mo:base/Float";
 import Trie "mo:base/Trie";
 import Blob "mo:base/Blob";
+import Iter "mo:base/Iter";
 import T "../Types/Types.All";
 import Constants "../Types/Types.Constants";
 import Account "../Modules/Token/Account/Account";
@@ -26,10 +27,12 @@ import Converters = "../Modules/Converters/Converters";
 import MemoryController "../Modules/Token/MemoryController/MemoryController";
 import Utils "../Modules/Token/Utils/Utils";
 import TypesBackupRestore "../Types/Types.BackupRestore";
+import CommonTypes "../Types/Types.Common";
+
 
 /// The actor class for the main token
 shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenInitArgs) : async T.TokenTypes.FullInterface = this {
-
+    
     private stable var model : Model.Model = Initializer.init_model();
 
     //Convert argument, because 'init_args' can now be null, in case of upgrade scenarios. ('dfx deploy')
@@ -44,50 +47,55 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     private let memoryController : MemoryController.MemoryController = MemoryController.MemoryController(model);
 
+    // ONLY for debugging purposes:
+    // public shared query func get_token_maindata() : async TypesBackupRestore.BackupCommonTokenData {
+    //     Converters.ConvertToTokenMainData(token);
+    // };
+     
     // ------------------------------------------------------------------------------------------
     // ICRC1
 
-    public shared query func icrc1_name() : async Text {
+    public shared query func icrc1_name() : async Text {                
         ICRC1.icrc1_name(token);
     };
 
-    public shared query func icrc1_symbol() : async Text {
+    public shared query func icrc1_symbol() : async Text {        
         ICRC1.icrc1_symbol(token);
     };
 
-    public shared query func icrc1_decimals() : async Nat8 {
+    public shared query func icrc1_decimals() : async Nat8 {        
         ICRC1.icrc1_decimals(token);
     };
 
-    public shared query func icrc1_fee() : async T.Balance {
+    public shared query func icrc1_fee() : async T.Balance {           
         ICRC1.icrc1_fee(token);
     };
 
-    public shared query func icrc1_metadata() : async [T.TokenTypes.MetaDatum] {
+    public shared query func icrc1_metadata() : async [T.TokenTypes.MetaDatum] {        
         ICRC1.icrc1_metadata(token);
     };
 
-    public shared query func icrc1_total_supply() : async T.Balance {
+    public shared query func icrc1_total_supply() : async T.Balance {        
         ICRC1.icrc1_total_supply(token);
     };
 
-    public shared query func icrc1_minting_account() : async ?T.AccountTypes.Account {
+    public shared query func icrc1_minting_account() : async ?T.AccountTypes.Account {                
         ?ICRC1.icrc1_minting_account(token);
     };
 
-    public shared query func icrc1_balance_of(args : T.AccountTypes.Account) : async T.Balance {
+    public shared query func icrc1_balance_of(args : T.AccountTypes.Account) : async T.Balance {                
         ICRC1.icrc1_balance_of(token, args);
     };
 
-    public shared query func icrc1_supported_standards() : async [T.TokenTypes.SupportedStandard] {
+    public shared query func icrc1_supported_standards() : async [CommonTypes.SupportedStandard] {        
         ICRC1.icrc1_supported_standards(token);
     };
 
-    public shared ({ caller }) func icrc1_transfer(args : T.TransactionTypes.TransferArgs) : async T.TransactionTypes.TransferResult {
-
+    public shared ({ caller }) func icrc1_transfer(args : T.TransactionTypes.TransferArgs) : async T.TransactionTypes.TransferResult {                
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
+        
         await* ICRC1.icrc1_transfer(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
@@ -96,15 +104,15 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // ------------------------------------------------------------------------------------------
     // ICRC2
 
-    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResult {
+    public shared ({ caller }) func icrc2_approve(approveArgs : T.TransactionTypes.ApproveArgs) : async T.TransactionTypes.ApproveResult {        
         ICRC2.icrc2_approve(caller, approveArgs, token, memoryController);
     };
 
-    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {
+    public shared query func icrc2_allowance(allowanceArgs : T.TransactionTypes.AllowanceArgs) : async T.TransactionTypes.Allowance {        
         ICRC2.icrc2_allowance(allowanceArgs, memoryController);
     };
 
-    public shared ({ caller }) func icrc2_transfer_from(transferFromArgs : T.TransactionTypes.TransferFromArgs) : async T.TransactionTypes.TransferFromResponse {
+    public shared ({ caller }) func icrc2_transfer_from(transferFromArgs : T.TransactionTypes.TransferFromArgs) : async T.TransactionTypes.TransferFromResponse {        
         await* ICRC2.icrc2_transfer_from(caller, transferFromArgs, token, memoryController);
     };
 
@@ -113,9 +121,12 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     // -------------------------------------------------------------------------------------------
     // SLICES token functions
 
-    //Fee is zero for Fee-whitelisted principals, else defaultFee is returned
-    public shared query func real_fee(from : Principal, to : Principal) : async T.Balance {
 
+    public shared query func get_allowance_list(owner : T.AccountTypes.Account):async [T.TransactionTypes.AllowanceInfo] {
+        SlicesToken.get_allowance_list(memoryController,owner);
+    };
+    //Fee is zero for Fee-whitelisted principals, else defaultFee is returned
+    public shared query func real_fee(from : Principal, to : Principal) : async T.Balance {        
         SlicesToken.get_real_token_fee(from, to, token);
     };
 
@@ -357,8 +368,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     public shared ({ caller }) func restore(restoreInfo : TypesBackupRestore.RestoreInfo) : async Result.Result<Text, Text> {
 
-        if (Account.user_is_owner_or_admin(caller, token) == false) {
-            return #err("Unauthorized: Only minting account or admin can call this function..");
+        if (caller != token.minting_account.owner){        
+            return #err("Unauthorized: Only minting account can call this function..");
         };
 
         ExtendedToken.restore(memoryController, token, restoreInfo);
@@ -411,14 +422,15 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
 
     };
 
-    public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.TransactionTypes.TransferResult {
+    public shared ({ caller }) func mint(args : T.TransactionTypes.Mint) : async T.TransactionTypes.TransferResult {        
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
+               
         await* ExtendedToken.mint(token, args, caller, model.settings.archive_canisterIds, model);
     };
 
-    public shared ({ caller }) func burn(args : T.TransactionTypes.BurnArgs) : async T.TransactionTypes.TransferResult {
+    public shared ({ caller }) func burn(args : T.TransactionTypes.BurnArgs) : async T.TransactionTypes.TransferResult {        
         if (cyclesAvailable() < Constants.TOKEN_CYCLES_NEEDED_FOR_OPERATIONS) {
             return #Err(#GenericError { error_code = 1234; message = "Not enough free Cycles available" });
         };
@@ -467,37 +479,49 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         await* ExtendedToken.set_min_burn_amount(token, min_burn_amount, caller);
     };
 
-    public shared query func min_burn_amount() : async T.Balance {
+    public shared query func min_burn_amount() : async T.Balance {        
         ExtendedToken.min_burn_amount(token);
     };
 
-    public shared query func get_burned_amount() : async Nat {
+    public shared query func get_burned_amount() : async Nat {        
         token.burned_tokens;
     };
 
-    public shared query func get_max_supply() : async Nat {
+    public shared query func get_max_supply() : async Nat {        
         token.max_supply;
     };
 
-    public shared query func get_archive() : async T.ArchiveTypes.ArchiveInterface {
+    public shared query func get_archive() : async T.ArchiveTypes.ArchiveInterface {                
         ExtendedToken.get_archive(token);
     };
 
-    public shared query func get_total_tx() : async Nat {
+    public shared query func get_total_tx() : async Nat {        
         ExtendedToken.total_transactions(token);
     };
 
-    public shared query func get_archive_stored_txs() : async Nat {
+    public shared query func get_archive_stored_txs() : async Nat {        
         ExtendedToken.get_archive_stored_txs(token);
     };
 
     // Functions for integration with the rosetta standard
-    public shared query func get_transactions(req : T.TransactionTypes.GetTransactionsRequest) : async T.TransactionTypes.GetTransactionsResponse {
+    public shared query func get_transactions(req : T.TransactionTypes.GetTransactionsRequest) : async T.TransactionTypes.GetTransactionsResponse {        
         ExtendedToken.get_transactions(token, req);
     };
 
+    public shared func get_transactions_by_index(startIndex:Nat, length:Nat) : async [T.TransactionTypes.Transaction] {
+        await* ExtendedToken.get_transactions_by_index_directly(token, startIndex, length);
+    };
+
+    public shared func get_transactions_by_principal_count(principal:Principal) : async Nat {
+        await* ExtendedToken.get_transactions_by_principal_count(token, principal);        
+    };
+
+    public shared func get_transactions_by_principal(principal:Principal, startIndex:Nat, length:Nat) : async [T.TransactionTypes.Transaction] {
+        await* ExtendedToken.get_transactions_by_principal(token, principal, startIndex, length);        
+    };
+
     // Additional functions not included in the ICRC1 standard
-    public shared func get_transaction(i : T.TransactionTypes.TxIndex) : async ?T.TransactionTypes.Transaction {
+    public shared func get_transaction(i : T.TransactionTypes.TxIndex) : async ?T.TransactionTypes.Transaction {        
         await* ExtendedToken.get_transaction(token, i);
     };
 
@@ -542,7 +566,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
     };
 
     /// Show the status of the auto fill up timer settings
-    public shared func auto_topup_cycles_status() : async T.CanisterTypes.CanisterAutoTopUpDataResponse {
+    public shared query func auto_topup_cycles_status() : async T.CanisterTypes.CanisterAutoTopUpDataResponse {
 
         let response : T.CanisterTypes.CanisterAutoTopUpDataResponse = {
             autoCyclesTopUpEnabled = model.settings.autoTopupData.autoCyclesTopUpEnabled;
@@ -561,7 +585,7 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         assert (accepted == amount);
     };
 
-    public shared query func cycles_balance() : async Nat {
+    public shared query func cycles_balance() : async Nat {        
         Cycles.balance();
     };
 
@@ -651,6 +675,8 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
         };
     };
 
+
+
     system func inspect({
         caller : Principal;
         arg : Blob;
@@ -706,12 +732,18 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
             #get_max_supply : () -> ();
             #backup : () -> (TypesBackupRestore.BackupParameter);
             #restore : () -> Any;
+            #get_transactions_by_index : () -> (Any, Any);
+            #get_transactions_by_principal_count: () -> Any;
+            #get_transactions_by_principal: () -> (Any, Any,Any);   
+            #get_allowance_list:() -> Any;
+            #get_token_maindata: () -> ();                
         };
     }) : Bool {
-
+     
         if (model.settings.token_operations_are_paused) {
 
-            if (Account.user_is_owner_or_admin(caller, token) == false and caller != Principal.fromActor(this)) {
+            //if (Account.user_is_owner_or_admin(caller, token) == false and caller != Principal.fromActor(this)) {
+            if (Account.user_is_owner_or_admin(caller, token) == true and caller != Principal.fromActor(this)) {
                 switch (msg) {
                     case ((#token_operation_continue _)) {
                         return true;
@@ -734,8 +766,12 @@ shared ({ caller = _owner }) actor class Token(init_args : ?T.TokenTypes.TokenIn
                 };
                 return false;
             };
+            return false;
         };
         return true;
     };
+
+
+    
 
 };

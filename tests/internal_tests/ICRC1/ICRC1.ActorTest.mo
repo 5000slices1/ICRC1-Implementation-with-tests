@@ -11,6 +11,7 @@ import Initializer "../../../src/ICRC1/Modules/Token/Initializer/Initializer";
 import TokenTypes "../../../src/ICRC1/Types/Types.Token";
 import ExtendedToken "../../../src/ICRC1/Modules/Token/Implementations/EXTENDED.Implementation";
 import Model "../../../src/ICRC1/Types/Types.Model";
+import CommonTypes "../../../src/ICRC1/Types/Types.Common";
 
 module {
 
@@ -97,12 +98,12 @@ module {
 
                         let token = Initializer.tokenInit(args);
 
-                        let icrc1_standard : TokenTypes.SupportedStandard = {
+                        let icrc1_standard : CommonTypes.SupportedStandard = {
                             name = "ICRC-1";
                             url = "https://github.com/dfinity/ICRC-1";
                         };
 
-                        let icrc2_standard : TokenTypes.SupportedStandard = {
+                        let icrc2_standard : CommonTypes.SupportedStandard = {
                             name = "ICRC-2";
                             url = "https://github.com/dfinity/ICRC-1/tree/main/standards/ICRC-2";
                         };
@@ -112,7 +113,7 @@ module {
                             token.name == args.name,
                             token.symbol == args.symbol,
                             token.decimals == args.decimals,
-                            token.defaultFee == args.fee,
+                            token.fee == args.fee,
                             token.max_supply == args.max_supply,
 
                             token.minting_account == args.minting_account,
@@ -232,7 +233,7 @@ module {
                                 ("icrc1:name", #Text(args.name)),
                                 ("icrc1:symbol", #Text(args.symbol)),
                                 ("icrc1:decimals", #Nat(Nat8.toNat(args.decimals))),
-                                ("icrc1:minting_allowed", #Text(debug_show (args.minting_allowed))),
+                                // ("icrc1:minting_allowed", #Text(debug_show (args.minting_allowed))),
                                 ("icrc1:logo", #Text(args.logo)),
                             ]
                         );
@@ -289,7 +290,7 @@ module {
                                     from_subaccount = user1.subaccount;
                                     to = user2;
                                     amount = 50 * (10 ** Nat8.toNat(token.decimals));
-                                    fee = ?token.defaultFee;
+                                    fee = ?token.fee;
                                     memo = null;
                                     created_at_time = null;
                                 };

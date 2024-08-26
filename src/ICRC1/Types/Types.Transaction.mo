@@ -4,6 +4,7 @@ import STMap "mo:StableTrieMap";
 import StableBuffer "mo:StableBuffer/StableBuffer";
 import CommonTypes "Types.Common";
 import AccountTypes "Types.Account";
+import Account "../../../tests/Dfnity-ICRC1-Reference/ref/Account";
 
 module {
 
@@ -33,6 +34,7 @@ module {
         #burn;
         #transfer;
     };
+
 
     public type TransferResult = {
         #Ok : TxIndex;
@@ -171,6 +173,8 @@ module {
     //     the ledger MUST return { allowance = 0; expires_at = null }.
     public type Allowance = { allowance : Nat; expires_at : ?Nat64 };
     public type AllowanceArgs = { account : Account; spender : Account };
+        
+    public type AllowanceInfo = { spender:Account; allowance : Nat; expires_at : ?Nat64 };
 
     // --------------------------------------------------------------------
 

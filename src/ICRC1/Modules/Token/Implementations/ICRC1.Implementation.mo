@@ -10,6 +10,7 @@ import Transfer "../Transfer/Transfer";
 import T "../../../Types/Types.All";
 import ArchiveHelper "../Archive/ArchiveHelper";
 import Model "../../../Types/Types.Model";
+import CommonTypes "../../../Types/Types.Common";
 
 module {
     let { SB } = Utils;
@@ -20,7 +21,7 @@ module {
     private type AccountBalances = T.AccountTypes.AccountBalances;
     private type TransferArgs = T.TransactionTypes.TransferArgs;
     private type TransferResult = T.TransactionTypes.TransferResult;
-    private type SupportedStandard = T.TokenTypes.SupportedStandard;
+    private type SupportedStandard = CommonTypes.SupportedStandard;
     private type TokenData = T.TokenTypes.TokenData;
     private type MetaDatum = T.TokenTypes.MetaDatum;
     private type Transaction = T.TransactionTypes.Transaction;
@@ -42,23 +43,32 @@ module {
 
     /// Retrieve the fee for each transfer
     public func icrc1_fee(token : TokenData) : Balance {
-        token.defaultFee;
+        token.fee;
     };
 
     /// Retrieve all the metadata of the token
     public func icrc1_metadata(token : TokenData) : [MetaDatum] {
         [
-            ("icrc1:fee", #Nat(token.defaultFee)),
+            ("icrc1:fee", #Nat(token.fee)),
             ("icrc1:name", #Text(token.name)),
             ("icrc1:symbol", #Text(token.symbol)),
             ("icrc1:decimals", #Nat(Nat8.toNat(token.decimals))),
-            ("icrc1:minting_allowed", #Text(debug_show (token.minting_allowed))),
+            //("icrc1:minting_allowed", #Text(debug_show (token.minting_allowed))),
             ("icrc1:logo", #Text(token.logo)),
         ];
     };
 
     /// Returns the total supply of circulating tokens
     public func icrc1_total_supply(token : TokenData) : Balance {
+        
+
+        let total_supply:Balance = token.minted_tokens - token.burned_tokens;
+        return total_supply;
+        
+
+        /*
+        // We can not iterate all the time to get the total supply
+
         var iter = Trie.iter(token.accounts.trie);
         var totalBalances : Nat = 0;
         
@@ -67,6 +77,7 @@ module {
         };
 
         return totalBalances;
+        */
     };
 
     /// Returns the account with the permission to mint tokens

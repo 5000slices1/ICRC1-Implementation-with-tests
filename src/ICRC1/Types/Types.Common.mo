@@ -6,4 +6,9 @@ module {
     ///Balance type, that is used by many modules
     public type Balance = Nat;
 
+        public type SupportedStandard = {
+        name : Text;
+        url : Text;
+    };
+
 };
